@@ -22,3 +22,5 @@ cd bomthegov
 ```
 bash radars.sh
 ```
+
+When you've had enough, interrupt the scraping by pressing CTRL + C and `imagemagick` will then try to build animated GIFs for each radar from whatever is scraped.
