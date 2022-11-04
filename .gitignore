@@ -1,0 +1,7 @@
+# don't synchronise local temporary storage
+.tmp
+
+# don't synchronise image storage or timelapses
+# **these folders are also large in size!**
+images
+timelapse

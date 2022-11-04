@@ -1,0 +1,584 @@
+#!/bin/bash
+
+# jore - fetch radar and satellite images from bom the gov and build stop-animations from collected data
+
+## set up environment
+# this script assumes a debian-based system, quietly check this system is supported before doing anything
+if ! command dpkg --version > /dev/null 2>&1; then
+  printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
+  printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short)"
+  exit 1
+fi
+
+# now check if the following dependent software packages are ready to go
+# `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
+dependencies=('gawk' 'ncftp' 'curl' 'imagemagick' 'ffmpeg')
+for which in "${dependencies[@]}"; do
+  # quietly check with package manager if required software is installed
+  dpkg --status "${which}" > /dev/null 2>&1 || { failed+=("${which}"); }
+done
+  # if $failed array contains something, then report what is missing
+  if [[ "${#failed[@]}" -ne 0 ]]; then
+  printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
+  # use `tput` to set the colour
+  printf '%s%s' "sudo apt install" "$(tput setaf 3)"
+  # iterates over each missing program in 'failed' array
+    for which in "${failed[@]}"; do
+    printf ' %s' "${which}"
+    done
+  # reset colour
+  printf '%s\n\n' "$(tput sgr0)"
+  # stop here and exit with error code 1
+  exit 1
+  fi
+
+# references for mapping exit codes
+  # exit_1='software or file dependency fail'
+  # exit_2='problem working with paths'
+  # exit_3='failure related to user input'
+
+# determine and set up relative paths
+fullpath_and_name="$(readlink --canonicalize "${0}")"
+wd="$(dirname "${fullpath_and_name}")"
+# name of this file only: ${0##*/}
+# relative path and name: ${0}
+# fullpath and name: ${fullpath_and_name}
+# path to this file only: ${wd}
+
+# ensure bundled data files exist and are not empty
+if ! [[ -s "${wd}/.data/desc.csv" ]]; then
+  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall ${0##*/}. See 'readme.md' for instructions."
+  exit 1
+fi
+
+# ensure we have a path for image storage available
+mkdir --parents "${wd}/.tmp" "${wd}/images" || exit 2
+
+# set a temporary storage for this session
+tmp="$(mktemp --directory --tmpdir="${wd}/.tmp" .session-XXXXXXXXXXXXXXXX)"
+
+# set a trap to ensure garbage collection from this session from now on
+trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
+
+# set the temporary storage as the working directory
+cd "${tmp}" || exit 2
+
+# set some common strings for use throughout
+less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+
+
+
+## functions
+
+# basic about info
+display_about() {
+  printf '\n%s - %s\n\n' 'bomthegov' 'Version 0.0.1a'
+  cat <<-end_cat
+	A tool to fetch radar or satellite images at set intervals from
+	the Australien [sic] Bureau of Meteorology (BOM) public archive,
+	and build simple timelapse videos from collected images.
+	end_cat
+}
+
+# initial help
+display_help() {
+  # display the about information first
+  display_about && echo
+  # then explain how to use this thing, with examples
+  cat <<-end_cat
+	Usage: bash $0 <option>
+
+	Available options:
+	  satellite   Collect images from a satellite.
+	  radar       Collect images from a radar.
+	  timelapse   Generate a timelapse video.
+	  reset       Delete all collected image sets and reset.
+	  help        Display this help message.
+
+	For example:
+	  'bash $0 satellite'
+	will display help on fetching image sets from a satellite.
+
+	end_cat
+}
+
+display_satellite_help() {
+  echo
+  cat <<-end_cat
+	Usage: bash $0 satellite <option>
+
+	Available options:
+	  list        Fetch a list of available satellite IDs.
+	  <id>        Start collecting images of <id> satellite.
+	  help        Display this help message.
+
+	For example:
+	  'bash $0 satellite IDE00435'
+	will start collecting images from the IDE00425 satellite.
+
+	Image collection continues until CTRL+C is pressed.
+
+	end_cat
+}
+
+display_radar_help() {
+  echo
+  cat <<-end_cat
+	Usage: bash $0 radar <option>
+
+	Available options:
+	  list        Fetch a list of available radar IDs.
+	  <id>        Start collecting images of <id> radar.
+	  help        Display this help message.
+
+	For example:
+	  'bash $0 radar IDE00435'
+	will start collecting images from the ?????? rain radar.
+
+	Image collection continues until CTRL+C is pressed.
+
+	end_cat
+}
+
+display_timelapse_help() {
+  echo
+  cat <<-end_cat
+	Usage: bash $0 timelapse <option>
+
+	Available options:
+	  list        Display a list of collected image sets.
+  	  <id>        Make a timelapse video for a specific radar
+	              or satellite ID.
+	  help        Display this help message.
+
+	end_cat
+}
+
+get_satellite_list() {
+  # dump entire satellite directory
+  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/gms/' > gms.list
+  # pattern match the list for expected image files only, to ignore any html, shtml, json, or tmp files that may generate false positives
+  # then extract the IDs (1st field) and unique sort to remove duplicate
+  # match IDs that have tif or jpg images only
+  gawk --field-separator='.' '/^.*\.tif$|\.jpg$/ {print $1}' gms.list | sort --unique > satellite-IDs.list
+}
+
+get_radar_list() {
+  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/radar/' > radar.list
+  # match IDs that have .png files only
+  gawk --field-separator='.' '/^.*\.png$/ {print $1}' radar.list | sort --unique > radar-IDs.list
+}
+
+get_timelapse_list() {
+  # find directories in image storage that have content in them and generate a list of what paths might be usable
+  # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
+  find "${wd}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print > image-paths.list
+  if ! [[ -s image-paths.list ]]; then
+    printf "%s\n\n" "No image sets found. Try collecting some images?"
+    printf '%s\n\n' "If you need help, try: 'bash $0 help'"
+    exit 3
+  fi
+  # file above contains our paths, but now also make a pretty list for displaying
+  # traverse the list and clean off the paths from each ID
+  while read -r file; do
+    # pattern match off everything until after last slash with parameter expansion and build new list
+    echo "${file##*/}" >> timelapse-IDs.list
+  done < image-paths.list
+  # pretty display
+  printf '\n\n%s\n\n' "The following IDs seem to have possible collected image data ready to timelapse:"
+  merge_lists "${wd}/.data/desc.csv" 'timelapse-IDs.list' prettify && printf '\n'
+}
+
+merge_lists() {
+  # prettify and display a list of IDs with descriptive data from CSV file
+  # match found IDs using `awk` from a CSV file that contains rows of descriptive data about known IDs  
+  # can find/replace on both satellite or radars lists
+  local csv_file="$1"
+  local list_file="$2"
+  local arg="$3" # used to determine if we should prettify display or not
+  # thanks to @SasaK for the help with `awk` here
+  gawk --field-separator=',' '
+    # put the function arg into a variable for awk (we have to weirdly escape it because of nested quoting)
+    # to test later whether we are writing in CSV format or displaying a pretty list
+    BEGIN {prettify = "'"$arg"'"}
+    # set up prettification
+    function make_newline(line) {
+      newline = ""
+      # find the comma separated columns for each line
+      split(line, all_columns)
+      for (column_index in all_columns) {
+        current_column = all_columns[column_index]
+        # "recomposing" with formatting applied
+        newline = newline " " sprintf("%-*s", all_lengths[column_index] + 3, current_column)
+      }
+      return substr(newline, 2)
+    }
+    # if we are going through the CSV file, take the data from CSV file and match it against the list of IDs
+    {
+      if (NR == FNR) {
+        # determine the headings of the columns
+        if (NR == 1) header = $0
+        # get the number of columns
+        if (!column_number) column_number = NF - 1
+        # determine the length of each column for prettification spacing (spacing will be based on the longest length after traversing all rows)
+        for (field_index=1; field_index<NF; field_index++)
+          if (length($field_index) > all_lengths[field_index]) all_lengths[field_index] = length($field_index)
+        # associate lines with their IDs
+        ids[$1] = $0
+      } else {
+        # now merge the data
+        # if we get a match of an ID in the list, merge it with the matching CSV description data
+        if ($1 in ids) {
+          # remake the line to assemble/merge the data depending on if the result should be pretty or written to file in CSV format
+          new_file = new_file "\n" ((prettify) ? make_newline(ids[$1]) : ids[$1])
+        } else {
+          # if ID does not have any data associated, keep it, but add empty space to the rest of its column
+          empty_columns = sprintf("%s%*s", $1, column_number, " ")
+          if (!prettify) gsub(" ", ",", empty_columns)
+          new_file = new_file "\n" empty_columns
+        }
+      }
+    } END {
+      # do the merge work
+      # add headings
+      if (prettify) header = make_newline(header)
+      # now print all lines
+      print header new_file
+    }' "${csv_file}" "${list_file}"
+}
+
+strict_test_satellite_id() {
+  local user_input="${1}"
+  # satellite IDs should start with "IDE" and contain at least5 numbers (8 characters max in total)
+  if [[ "${user_input}" =~ ^IDE[0-9]{5}$ ]]; then id_type='satellite' && return 0; else return 3; fi
+}
+
+strict_test_radar_id() {
+  local user_input="${1}"
+  # radar IDs should start with 'IDR' and contain at least 3 alpha/numeric characters, max of 5 (8 characters max in total)
+  # if we match that format, return 0 for success, else return 3 for "problem with user input" code
+  if [[ "${user_input}" =~ ^IDR[0-9|A-Z]{3,5}$ ]]; then id_type='radar' && return 0; else return 3; fi
+}
+
+handle_user_input() {
+  local context="${1}" # $1 being the context (passed to this function) which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
+  # $2 is unsanitised user input
+  # accept input with lowercase letters, which is good for lazy typing, but bump everything in $2 to uppercase with ^^ parameter expansion
+  local user_input="${2^^}"
+  # test $2 thoroughly, to both see what we have is an expected format in its context, and try avoid trouble as much as possible as user input here is used
+  # to build paths and filenames and so on
+  # we also need uppercase sanitised input for strict `grep` checking and also correct FTP file pattern matching throughout (important!)
+  case "${context}" in
+    'satellite')
+      if strict_test_satellite_id "${user_input}"; then
+        id="${user_input}"
+      else
+        printf "'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid satellite ID." "Expected ID is 8 alpha-numeric characters, starting with 'IDE'." "For example: IDE00135"
+        printf '%s\n' "Try 'bash $0 satellite list' to display a list of available IDs."
+        exit 3
+      fi
+    ;;
+    'radar')
+      if strict_test_radar_id "${user_input}"; then
+        id="${user_input}"
+      else
+        printf "'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid radar ID." "Expected ID is 6 to 8 alpha-numeric characters, starting with 'IDR'." "For example: IDR034"
+        printf '%s\n' "Try 'bash $0 radar list' to display a list of available IDs."
+        exit 3
+      fi
+    ;;
+    'timelapse')
+      if strict_test_radar_id "${user_input}" || strict_test_satellite_id "${user_input}"; then
+        id="${user_input}"
+      else
+        printf "'%s' %s\n" "${user_input}" "appears to be an invalid ID."
+        printf '%s\n' "Try 'bash $0 timelapse list' to display a list of available IDs."
+        exit 3
+      fi
+    ;;
+  esac
+}
+
+handle_satellite_images() {
+  case $2 in
+    'list')
+      # fetch a list of available satellite IDs
+      printf '%s' "Fetching satellite list... "
+      get_satellite_list && printf '\n\n'
+      # pretty display the data in nice columns, and pipe to `less` to handle scrolling
+      # set security environment variable for `less` to disallow shell commands, piping, editing, log files and tab completion inside `less`
+      export LESSSECURE=1
+      merge_lists "${wd}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      printf '\n'
+    ;;
+      
+    ''|'help')
+      # no option given, so display help
+      # or help explicitly asked for
+      display_satellite_help
+    ;;
+      
+    *)
+      # passed variable user input here
+      # run sanitation and formatting tests
+      handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
+      # checks passed, so attempt to fetch what looks like a valid satellite ID
+      printf '\n%s\n' "Attempting to fetch ${id} satellite images:"
+      # ensure we have recent list first
+      get_satellite_list
+      # is the ID on the list?
+      if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
+        printf "'%s' %s\n%s\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
+        exit 3
+      fi
+      
+      # finished user input tests, so we have something to work with
+      # ensure target paths exist and prepare to fetch
+      mkdir --parents "${wd}/images/satellite/${id}" || exit 2
+      cd "${wd}/images/satellite/${id}/" || exit 2
+      
+      # download all images matching ID wildcard
+      # this will start with existing archive (i.e. whatever bom keeps for 24 hours, for example)
+      ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*"
+    ;;
+  esac
+}
+
+handle_radar_images() {
+  case $2 in
+    'list')
+      # fetch a list of available radar IDs
+      printf '%s' "Fetching radar list... "
+      get_radar_list && printf '\n\n'
+      # pretty display the data in nice columns, and pipe to `less` to handle scrolling
+      # set security environment variable for `less` to disallow shell commands, piping, editing, log files and tab completion inside `less`
+      export LESSSECURE=1
+      merge_lists "${wd}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      printf '\n'
+    ;;
+      
+    ''|'help')
+      # no option given, so display help
+      # or help explicitly asked for
+      display_radar_help
+    ;;
+      
+    *)
+      # passed variable user input here
+      # run sanitation and formatting tests
+      handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
+      # checks passed, so attempt to fetch what looks like a valid radar ID
+      printf '\n%s\n' "Attempting to fetch ${id} radar data:"
+      # ensure we have recent list first
+      get_radar_list
+      # is the ID on the list?
+      if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
+        printf "'%s' %s\n%s\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
+        exit 3
+      fi
+      
+      # looking good, ensure storage is available
+      mkdir --parents "${wd}/images/radar/${id}" || exit 2
+      cd "${wd}/images/radar/${id}/" || exit 2
+      # get the radar images
+      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png"
+      
+      # get the background image layers if need be
+      printf '\n%s\n' "Getting geographical layers:"
+      mkdir --parents "${wd}/images/radar/${id}/layers" || exit 2
+      cd "${wd}/images/radar/${id}/layers/" || exit 2
+      # the second last characters of an ID denotes it's location set
+      # so for example in IRD031, 03 = Wollongong NSW, 1=512km composite view, 2=256km, 3=128km, 4=64km
+      #                in IRD03A, 03 = Wollongong NSW, A=rain per 6 minutes, B=per hour, C=since 9am, D=24hrs, I=doppler wind velocity
+      # bom doesn't publish all the layers with their required IDs for A B C D and I sets so we need to do some processing here to get their backgrounds
+      # bom also doesn't publish background or layering for IDR00004 (the national rainfall radar) so handle that
+      # online it looks like they use the IDE00135.radar satellite image
+      # http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+      # waaargh bom the gov is so messy
+      
+      # so if dealing with the national rainfall radar (IDR00004)
+      if [[ "${id}" == 'IDR00004' ]]; then
+        # hardcode getting a static national background image
+        # use static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+        # i.e. IDE00035
+        # they don't publish that in their ftp archive (?!) so grab it from the website
+        # rename that image (?!) to this ID
+        # this is so crazy disorganised for an agency that runs on data
+        curl \
+          --output 'IDR00004.background.png' \
+          --time-cond 'IDR00004.background.png' \
+          --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
+          --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
+          --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png'
+     
+      # then if the ID ends in A B C D or I
+      elif [[ "${id}" =~ [A-D|I]$ ]]; then
+        # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
+        # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
+        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png"
+      
+      # none of those conditions
+      else
+        # don't need to do anything special here so get the ID layers as they're published
+        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png"
+      fi
+      # geez
+      
+      # ensure radar image legend layers are available
+      printf '\n%s\n' "Getting graph legends:"
+      mkdir --parents "${wd}/images/radar/legend" || exit 2
+      cd "${wd}/images/radar/legend" || exit 2
+      # get the radar images
+      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png"
+    ;;
+  esac
+}
+
+handle_timelapse_images() {
+  case $2 in
+    'list')
+      # get list of image sets that have been collected
+      printf '%s' "Searching for collected images... "
+      export LESSSECURE=1
+      get_timelapse_list | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      printf '\n'
+    ;;
+    
+    ''|'help')
+      # no option given, so display help
+      display_timelapse_help
+    ;;
+      
+    *)
+      # passed variable user input here
+      # run sanitation and formatting tests
+      handle_user_input "${1}" "${2}" # $2 being user input from command line
+      # get resulting context, i.e. if after tests, ID is a radar or a satellite as we need to do different processing for each
+      context="${id_type}"
+    
+      # now check to see if we have any collected images for this ID
+      # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
+      # use a subshell so our changes to `shopt` are temporary
+      # `nullglob` setting means patterns that don't match any filenames are simply expanded to **nothing** rather than remaining unexpanded
+      # we need this so no matches return empty space rather than a literal *
+      # `dotglob` setting means globbing to include hidden files
+      # use `echo` to expand to print any matching filenames only, not an unspecified shell wildcard which eventually expands to everything
+      # also we don't need quoting in the array because we want things to intentionally wordsplit
+      files=($(shopt -s nullglob dotglob; echo "${wd}/images/${context}/${id}/"*.*))
+      # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
+      # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
+      # or `find` (as it's exit codes aren't consistent with empty paths that exist?)
+      if ! [[ -d "${wd}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
+        printf "'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
+        printf '%s\n' "Try 'bash $0 ${context} ${id}' to start collecting images first."
+        exit 3
+      fi
+      # the bonus is now that we also have existing files in an array, we're ready to work with them
+      
+      # switch to the folder now we've checked it
+      cd "${wd}/images/${context}/${id}/" || exit 2
+      
+      # ensure we have a scratch ready for current conversion to be temporarily saved into
+      scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
+      
+      # prepare each image as video frames
+        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which ffmpeg doesn't like
+        if [[ "${context}" == 'satellite' ]]; then        
+          printf '%s' "Flattening satellite images... "
+          for file in "${files[@]}"; do
+            # get the name of the current file only by stripping off its path
+            current_filename="${file##*/}"
+            # tif files from bom have multiple layers and if just using filenames imagemagick splits those layers into multiple files
+            # that's undesirable so use [0] after file name to get the first layer only
+            # ensure we are converting to jpegs by removing current filename's extension and popping in .jpg
+            # do this quietly to avoid warning messages about tif layers we might encounter
+            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"
+          done
+          
+        # if we're making a timelapse of a radar, assemble its layers
+        elif [[ "${context}" == 'radar' ]]; then
+          # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
+          # determine what legend is required first, based on it's ID structure
+            # if ID ends in a number, it's a rainfields data; use legend 0 (rain rate scale, light -> heavy)
+            [[ "${id}" =~ [0-9]$ ]] && legend="${wd}/images/radar/legend/IDR.legend.0.png"
+            # if ID ends in A B C or D then it's a rainfields data; use legend 1 (rainfall in mm)
+            [[ "${id}" =~ [A-D]$ ]] && legend="${wd}/images/radar/legend/IDR.legend.1.png"
+            # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
+            [[ "${id}" =~ I$ ]] && legend="${wd}/images/radar/legend/IDR.legend.2.png"
+          printf '%s' "Preparing radar image layers... "
+          for file in "${files[@]}"; do
+            convert -quiet \
+              "${legend}" \
+              "layers/*.background.png" \
+              "layers/*.topography.png" \
+              "layers/*.locations.png" \
+              "layers/*.range.png" \
+              "$file" -flatten "${scratch}/${file##*/}"
+          done  
+        fi
+        
+      # now get the first and last names of files we're timelapsing, for use in a moment to generate label for MP4 file
+      first_file="${files[0]##*/}"
+      last_file="${files[${#files[@]}-1]##*/}" # looks messy because to get last array item, we need total number of keys minus one
+      # determine each file's creation date and time to discern timeframe of capture
+      timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
+      timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
+      timelapse_file="${wd}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
+      
+      # ensure directory to store created timelapse exists
+      mkdir --parents "${wd}/timelapse" || exit 2
+
+      # now make mp4 video timelapse!
+      printf '\n%s\n' "Making MP4... "
+        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers
+        # which ffmpeg doesn't like
+        if [[ "${context}" == 'satellite' ]]; then
+          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
+
+        # if we're making a timelapse of a radar, we use the assembled png files
+        elif [[ "${context}" == 'radar' ]]; then
+          # -r 10 means essentially 10fps; 1 frame for radar image per ~5 minutes; so @10fps, 1 second of footage = ~1hr of radar data timelapsed
+          # -vf to add padding to avoid potential "height not divisible by 2" crashes
+          # generate timestamp based on first and last collected frames
+          # because of fiddling globbing with ffmpeg, just set pwd to where images are
+          # `ffmpeg` requires everything on one long line here as it breaks when using backslashes between switches
+          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
+        fi
+      
+      # after a successful timelapse is made, move the stored images folder to archive and clean up the remaining folder once that's done
+      # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
+      mkdir --parents "${wd}/images/.archive/${context}/${id}" || exit 2
+      cd "${wd}" || exit 2
+      mv --force "${wd}/images/${context}/${id}/"*.* "${wd}/images/.archive/${context}/${id}/" && rm --force --recursive "${wd}/images/${context}/${id}"
+      # also ensure scratch cleanup
+      rm --force --recursive "${scratch}"
+      
+      # open the timelapse video file in the user's preferred application
+      ##xdg-open "${timelapse_file}"
+    ;;
+  esac
+}
+
+handle_reset_cleanup() {
+  echo "are you sure?"
+  echo "this will delete everything (except rendered timelapses in /timelapse folder)"
+}
+
+
+
+## runtime
+
+# work out what to do from the first argument of user input
+case $1 in
+  'radar') handle_radar_images "$@";;
+  'satellite') handle_satellite_images "$@";;
+  'timelapse') handle_timelapse_images "$@";;
+  'reset') handle_reset_cleanup;;
+  'help') display_help;;
+  '') display_help;;
+  *)
+    printf "%s: '%s'\n" "Invalid option" "$1"
+    printf '%s\n' "Try 'bash $0 help' for more information."
+    exit 3
+  ;;
+esac

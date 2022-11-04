@@ -1,0 +1,455 @@
+ID,View/Description,Camera/Sensor/Method,Res,DelT
+
+IDE00005,GMS 12km (EOL),IR,N/A,504
+IDE00006,GMS 12km (EOL),VIS,N/A,504
+IDE00105,GMS (EOL),IR,N/A,504
+IDE00106,GMS (EOL),VIS,N/A,504
+
+IDE00123,GMS AUS West (EOL),IR Zehr,N/A,504
+IDE00124,GMS AUS West (EOL),IR enhanced,N/A,504
+IDE00125,GMS AUS West (EOL),IR,N/A,504
+IDE00126,GMS AUS West (EOL),VIS,N/A,504
+
+IDE00133,GMS AUS (EOL),IR Zehr,N/A,504
+IDE00134,GMS AUS (EOL),IR enhanced,N/A,504
+IDE00135,GMS AUS Blue Marble (EOL),,N/A,504
+
+IDE00143,GMS AUS East (EOL),IR Zehr,N/A,504
+IDE00144,GMS AUS East (EOL),IR enhanced,N/A,504
+IDE00145,GMS AUS East (EOL),IR,N/A,504
+IDE00146,GMS AUS East (EOL),VIS,N/A,504
+
+IDE00153,GMS Full Disc,IR Zehr,N/A,504
+IDE00154,GMS Full Disc,IR enhanced,N/A,504
+IDE00155,GMS Full Disc,IR,N/A,504
+IDE00156,GMS Full Disc,VIS,N/A,504
+
+IDE00401,AUS equirectangular projection,IR (Ch13) greyscale,2,24
+IDE00402,AUS equirectangular projection,VIS (Ch3) greyscale,2,24
+IDE00403,AUS equirectangular projection,IR (Ch13) Zehr,2,24
+IDE00404,AUS equirectangular projection,IR (Ch13) Rainbow,2,24
+IDE00405,AUS equirectangular projection,IR (Ch13) Blue Marble,2,24
+IDE00406,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,2,24
+IDE00407,AUS equirectangular projection,WV (Ch8),2,24
+IDE00409,AUS equirectangular projection,VIS (Ch3) Greyscale,0.5,24
+IDE00411,AUS equirectangular projection,VIS (Ch3) Greyscale,2,24
+
+IDE00412,AUS geostationary full disc,VIS (Ch3) Greyscale,4,24
+IDE00416,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,4,24
+IDE00420,AUS geostationary full disc,IR (Ch13) cloud cover only,2,24
+IDE00421,AUS geostationary full disc,IR (Ch13) greyscale,2,24
+IDE00422,AUS geostationary full disc,VIS (Ch13) Greyscale,2,24
+IDE00423,AUS geostationary full disc,IR (Ch13) Zehr,2,24
+IDE00425,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,1,24
+IDE00426,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,2,24
+IDE00427,AUS geostationary full disc,WV (Ch8) composite,2,24
+
+IDE00430,AUS equirectangular projection,IR (Ch13) cloud cover only,2,24
+IDE00431,AUS equirectangular projection,WV (Ch8) composite,2,24
+IDE00432,AUS equirectangular projection,VIS (Ch3) greyscale,2,24
+IDE00433,AUS equirectangular projection,IR (Ch13) Zehr,2,24
+IDE00435,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,1,24
+IDE00436,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,2,24
+IDE00437,AUS equirectangular projection,WV (Ch8),2,24
+
+IDR011,Broadmeadows VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR012,Broadmeadows VIC,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR013,Broadmeadows VIC,Local-scale 128km x 128km Composite,N/A,1.2
+IDR014,Broadmeadows VIC,Local-scale 64km x 64km Composite,N/A,1.2
+IDR01A,Broadmeadows VIC,Rainfields per 6 minutes,N/A,1.2
+IDR01B,Broadmeadows VIC,Rainfields per hour,N/A,1.2
+IDR01C,Broadmeadows VIC,Rainfields since 9am,N/A,10
+IDR01D,Broadmeadows VIC,Rainfields in 24 hours,N/A,240
+IDR01I,Broadmeadows VIC,Doppler wind velocity,N/A,1.2
+
+IDR021,Melbourne VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR022,Melbourne VIC,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR023,Melbourne VIC,Local-scale 128km x 128km Composite,N/A,1.2
+IDR024,Melbourne VIC,Local-scale 64km x 64km Composite,N/A,1.2
+IDR02A,Melbourne VIC,Rainfields per 6 minutes,N/A,1.2
+IDR02B,Melbourne VIC,Rainfields per hour,N/A,1.2
+IDR02C,Melbourne VIC,Rainfields since 9am,N/A,10
+IDR02D,Melbourne VIC,Rainfields in 24 hours,N/A,240
+IDR02I,Melbourne VIC,Doppler wind velocity,N/A,1.2
+
+IDR031,Wollongong (Appin) NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR032,Wollongong (Appin) NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR033,Wollongong (Appin) NSW,Local-scale 128km x 128km Composite,N/A,1.2
+IDR034,Wollongong (Appin) NSW,Local-scale 64km x 64km Composite,N/A,1.2
+IDR03A,Wollongong (Appin) NSW,Rainfields per 6 minutes,N/A,1.2
+IDR03B,Wollongong (Appin) NSW,Rainfields per hour,N/A,1.2
+IDR03C,Wollongong (Appin) NSW,Rainfields since 9am,N/A,10
+IDR03D,Wollongong (Appin) NSW,Rainfields in 24 hours,N/A,240
+IDR03I,Wollongong (Appin) NSW,Doppler wind velocity,N/A,1.2
+
+IDR041,Newcastle NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR042,Newcastle NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR043,Newcastle NSW,Local-scale 128km x 128km Composite,N/A,1.2
+IDR044,Newcastle NSW,Local-scale 64km x 64km Composite,N/A,1.2
+IDR04A,Newcastle NSW,Rainfields per 6 minutes,N/A,1.2
+IDR04B,Newcastle NSW,Rainfields per hour,N/A,1.2
+IDR04C,Newcastle NSW,Rainfields since 9am,N/A,10
+IDR04D,Newcastle NSW,Rainfields in 24 hours,N/A,240
+IDR04I,Newcastle NSW,Doppler wind velocity,N/A,1.2
+
+IDR051,Carnarvon WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR052,Carnarvon WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR053,Carnarvon WA,Local-scale 128km x 128km Composite,N/A,1.2
+
+IDR061,Geraldton WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR062,Geraldton WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR063,Geraldton WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR064,Geraldton WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR06A,Geraldton WA,Rainfields per 6 minutes,N/A,1.2
+IDR06B,Geraldton WA,Rainfields per hour,N/A,1.2
+IDR06C,Geraldton WA,Rainfields since 9am,N/A,10
+IDR06D,Geraldton WA,Rainfields in 24 hours,N/A,240
+IDR06I,Geraldton WA,Doppler wind velocity,N/A,1.2
+
+IDR071,Wyndham WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR072,Wyndham WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR073,Wyndham WA,Local-scale 128km x 128km Composite,N/A,1.2
+
+IDR081,Gympie/Mt Kanighan QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR082,Gympie/Mt Kanighan QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR083,Gympie/Mt Kanighan QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR084,Gympie QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR08A,Gympie QLD,Rainfields per 6 minutes,N/A,1.2
+IDR08B,Gympie QLD,Rainfields per hour,N/A,1.2
+IDR08C,Gympie QLD,Rainfields since 9am,N/A,10
+IDR08D,Gympie QLD,Rainfields in 24 hours,N/A,240
+IDR08I,Gympie QLD,Doppler wind velocity,N/A,1.2
+
+IDR091
+IDR092
+IDR093
+
+IDR101
+IDR102
+IDR103
+IDR104
+IDR10I
+
+IDR1071
+IDR1072
+IDR1073
+IDR1074
+IDR107A
+IDR107B
+IDR107C
+IDR107D
+IDR107I
+
+IDR141
+IDR142
+IDR143
+IDR151
+IDR152
+IDR153
+IDR154
+IDR15A
+IDR15B
+IDR15C
+IDR15D
+IDR15I
+IDR161
+IDR162
+IDR163
+IDR171
+IDR172
+IDR173
+IDR174
+IDR17A
+IDR17B
+IDR17C
+IDR17D
+IDR17I
+IDR191
+IDR192
+IDR193
+IDR194
+IDR19I
+IDR221
+IDR222
+IDR223
+IDR231
+IDR232
+IDR233
+IDR241
+IDR242
+IDR243
+IDR251
+IDR252
+IDR253
+IDR261
+IDR262
+IDR263
+IDR264
+IDR271
+IDR272
+IDR273
+IDR281
+IDR282
+IDR283
+IDR291
+IDR292
+IDR293
+IDR311
+IDR312
+IDR313
+IDR314
+IDR31A
+IDR31B
+IDR31C
+IDR31D
+IDR31I
+IDR321
+IDR322
+IDR323
+IDR324
+IDR32A
+IDR32B
+IDR32C
+IDR32D
+IDR32I
+IDR331
+IDR332
+IDR333
+IDR334
+IDR33A
+IDR33B
+IDR33C
+IDR33D
+IDR33I
+IDR361
+IDR362
+IDR363
+IDR371
+IDR372
+IDR373
+IDR381
+IDR382
+IDR383
+IDR384
+IDR38A
+IDR38B
+IDR38C
+IDR38D
+IDR38I
+IDR391
+IDR392
+IDR393
+IDR401
+IDR402
+IDR403
+IDR404
+IDR40A
+IDR40B
+IDR40C
+IDR40D
+IDR40I
+IDR421
+IDR422
+IDR423
+IDR441
+IDR442
+IDR443
+IDR461
+IDR462
+IDR463
+IDR46A
+IDR46B
+IDR46C
+IDR46D
+IDR481
+IDR482
+IDR483
+IDR484
+IDR48A
+IDR48B
+IDR48C
+IDR48D
+IDR48I
+IDR491
+IDR492
+IDR493
+IDR494
+IDR49I
+IDR501
+IDR502
+IDR503
+IDR521
+IDR522
+IDR523
+IDR524
+IDR52A
+IDR52B
+IDR52C
+IDR52D
+IDR52I
+IDR531
+IDR532
+IDR533
+IDR551
+IDR552
+IDR553
+IDR561
+IDR562
+IDR563
+IDR581
+IDR582
+IDR583
+IDR584
+IDR58A
+IDR58B
+IDR58C
+IDR58D
+IDR58I
+IDR621
+IDR622
+IDR623
+IDR631
+IDR632
+IDR633
+IDR634
+IDR63I
+IDR641
+IDR642
+IDR643
+IDR644
+IDR64A
+IDR64B
+IDR64C
+IDR64D
+IDR64I
+IDR661
+IDR662
+IDR663
+IDR664
+IDR66A
+IDR66B
+IDR66C
+IDR66D
+IDR66I
+IDR671
+IDR672
+IDR673
+IDR681
+IDR682
+IDR683
+IDR68I
+IDR691
+IDR692
+IDR693
+IDR694
+IDR69I
+IDR711
+IDR712
+IDR713
+IDR714
+IDR71A
+IDR71B
+IDR71C
+IDR71D
+IDR71I
+IDR721
+IDR722
+IDR723
+IDR724
+IDR72I
+IDR731
+IDR732
+IDR733
+IDR734
+IDR73I
+IDR741
+IDR742
+IDR743
+IDR744
+IDR74A
+IDR74B
+IDR74C
+IDR74D
+IDR74I
+IDR751
+IDR752
+IDR753
+IDR754
+IDR75A
+IDR75B
+IDR75C
+IDR75D
+IDR75I
+IDR771
+IDR772
+IDR773
+IDR774
+IDR77I
+IDR781
+IDR782
+IDR783
+IDR784
+IDR78I
+IDR791
+IDR792
+IDR793
+IDR794
+IDR79A
+IDR79B
+IDR79C
+IDR79D
+IDR79I
+IDR931
+IDR932
+IDR933
+IDR934
+IDR93A
+IDR93B
+IDR93C
+IDR93D
+IDR93I
+IDR941
+IDR942
+IDR943
+IDR944
+IDR94A
+IDR94B
+IDR94C
+IDR94D
+IDR94I
+IDR951
+IDR952
+IDR953
+IDR954
+IDR95A
+IDR95B
+IDR95C
+IDR95D
+IDR95I
+IDR961
+IDR962
+IDR963
+IDR964
+IDR96A
+IDR96B
+IDR96C
+IDR96D
+IDR96I
+IDR971
+IDR972
+IDR973
+IDR974
+IDR97A
+IDR97B
+IDR97C
+IDR97D
+IDR97I
+IDR981
+IDR982
+IDR983
+IDR984
+IDR98A
+IDR98B
+IDR98C
+IDR98D
+IDR98I
