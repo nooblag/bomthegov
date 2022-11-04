@@ -249,25 +249,25 @@ merge_lists() {
 
 strict_test_satellite_id() {
   local user_input="${1}"
-  # satellite IDs should start with "IDE" and contain at least5 numbers (8 characters max in total)
+  # satellite IDs should start with "IDE" and then 5 numbers (8 characters max in total)
+  # if we match that format, return 0 for success, else return 3 for "problem with user input" code
   if [[ "${user_input}" =~ ^IDE[0-9]{5}$ ]]; then id_type='satellite' && return 0; else return 3; fi
 }
 
 strict_test_radar_id() {
   local user_input="${1}"
   # radar IDs should start with 'IDR' and contain at least 3 alpha/numeric characters, max of 5 (8 characters max in total)
-  # if we match that format, return 0 for success, else return 3 for "problem with user input" code
   if [[ "${user_input}" =~ ^IDR[0-9|A-Z]{3,5}$ ]]; then id_type='radar' && return 0; else return 3; fi
 }
 
 handle_user_input() {
-  local context="${1}" # $1 being the context (passed to this function) which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
+  local context="${1}" # $1 being the arg(passed to this function, which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
   # $2 is unsanitised user input
   # accept input with lowercase letters, which is good for lazy typing, but bump everything in $2 to uppercase with ^^ parameter expansion
   local user_input="${2^^}"
-  # test $2 thoroughly, to both see what we have is an expected format in its context, and try avoid trouble as much as possible as user input here is used
-  # to build paths and filenames and so on
-  # we also need uppercase sanitised input for strict `grep` checking and also correct FTP file pattern matching throughout (important!)
+  # we need uppercase sanitised input for strict `grep` checking and also correct FTP file pattern matching throughout (important!)
+  # so test $2 thoroughly, to both see what we have is an expected format in its context, and try avoid trouble as much as possible
+  # user input here is used to build paths and filenames and so on
   case "${context}" in
     'satellite')
       if strict_test_satellite_id "${user_input}"; then
@@ -305,8 +305,8 @@ handle_satellite_images() {
       # fetch a list of available satellite IDs
       printf '%s' "Fetching satellite list... "
       get_satellite_list && printf '\n\n'
-      # pretty display the data in nice columns, and pipe to `less` to handle scrolling
-      # set security environment variable for `less` to disallow shell commands, piping, editing, log files and tab completion inside `less`
+      # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
+      # ensure security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
       merge_lists "${wd}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
@@ -337,8 +337,8 @@ handle_satellite_images() {
       mkdir --parents "${wd}/images/satellite/${id}" || exit 2
       cd "${wd}/images/satellite/${id}/" || exit 2
       
-      # download all images matching ID wildcard
-      # this will start with existing archive (i.e. whatever bom keeps for 24 hours, for example)
+      # download all images that start with ID then wildcard globbing
+      # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
       ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*"
     ;;
   esac
@@ -350,8 +350,8 @@ handle_radar_images() {
       # fetch a list of available radar IDs
       printf '%s' "Fetching radar list... "
       get_radar_list && printf '\n\n'
-      # pretty display the data in nice columns, and pipe to `less` to handle scrolling
-      # set security environment variable for `less` to disallow shell commands, piping, editing, log files and tab completion inside `less`
+      # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
+      # ensure the security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
       merge_lists "${wd}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
@@ -391,19 +391,20 @@ handle_radar_images() {
       # so for example in IRD031, 03 = Wollongong NSW, 1=512km composite view, 2=256km, 3=128km, 4=64km
       #                in IRD03A, 03 = Wollongong NSW, A=rain per 6 minutes, B=per hour, C=since 9am, D=24hrs, I=doppler wind velocity
       # bom doesn't publish all the layers with their required IDs for A B C D and I sets so we need to do some processing here to get their backgrounds
-      # bom also doesn't publish background or layering for IDR00004 (the national rainfall radar) so handle that
-      # online it looks like they use the IDE00135.radar satellite image
-      # http://www.bom.gov.au/products/national_radar_sat.loop.shtml
-      # waaargh bom the gov is so messy
+      # one assumes this is done to save disk space? but not sure why
+      # bom also doesn't publish background or layering for IDR00004 (the national rainfall radar), which is weird, so handle that
+      # online it looks like they use the 'IDE00135.radar' satellite image
+      # i.e. http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+      # waaargh bom the gov is messy here?
       
-      # so if dealing with the national rainfall radar (IDR00004)
+      # so, if dealing with the national rainfall radar (IDR00004)
       if [[ "${id}" == 'IDR00004' ]]; then
-        # hardcode getting a static national background image
-        # use static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
-        # i.e. IDE00035
-        # they don't publish that in their ftp archive (?!) so grab it from the website
-        # rename that image (?!) to this ID
-        # this is so crazy disorganised for an agency that runs on data
+        # hardcode getting a known static national background image
+        # use the static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+        # i.e. IDE00035 (note ...35, not ...135)
+        # they don't publish that image in their ftp archive either (?!) so grab it from the website
+        # rename that image to the national rainfall radar ID, so we at least are keeping track of what we're trying to fix
+        # does this seem disorganised for an agency that runs on data?
         curl \
           --output 'IDR00004.background.png' \
           --time-cond 'IDR00004.background.png' \
@@ -460,38 +461,38 @@ handle_timelapse_images() {
       # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
       # use a subshell so our changes to `shopt` are temporary
       # `nullglob` setting means patterns that don't match any filenames are simply expanded to **nothing** rather than remaining unexpanded
-      # we need this so no matches return empty space rather than a literal *
-      # `dotglob` setting means globbing to include hidden files
-      # use `echo` to expand to print any matching filenames only, not an unspecified shell wildcard which eventually expands to everything
+      # we need this so no matches return empty space rather than an unglobbed asterisk, i.e. literal *
+      # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
+      # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
       # also we don't need quoting in the array because we want things to intentionally wordsplit
       files=($(shopt -s nullglob dotglob; echo "${wd}/images/${context}/${id}/"*.*))
       # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
       # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
-      # or `find` (as it's exit codes aren't consistent with empty paths that exist?)
+      # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here?)
+      # this method of checking is also handy because we reduce processing later by having matched files ready to go in an array
       if ! [[ -d "${wd}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
         printf "'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
         printf '%s\n' "Try 'bash $0 ${context} ${id}' to start collecting images first."
         exit 3
       fi
-      # the bonus is now that we also have existing files in an array, we're ready to work with them
       
       # switch to the folder now we've checked it
       cd "${wd}/images/${context}/${id}/" || exit 2
       
-      # ensure we have a scratch ready for current conversion to be temporarily saved into
+      # ensure we have a scratch storage ready for current conversion to be temporarily saved into
       scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
       
       # prepare each image as video frames
-        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which ffmpeg doesn't like
+        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then        
           printf '%s' "Flattening satellite images... "
           for file in "${files[@]}"; do
             # get the name of the current file only by stripping off its path
             current_filename="${file##*/}"
-            # tif files from bom have multiple layers and if just using filenames imagemagick splits those layers into multiple files
-            # that's undesirable so use [0] after file name to get the first layer only
+            # tif files from bom have multiple layers and if just using filenames imagemagick splits those layers into multiple files which is unwanted
+            # so use [0] after file name which `convert` interprets as "get the first layer only"
             # ensure we are converting to jpegs by removing current filename's extension and popping in .jpg
-            # do this quietly to avoid warning messages about tif layers we might encounter
+            # also do this quietly to avoid warning messages about tif layers that we might encounter
             convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"
           done
           
@@ -530,8 +531,7 @@ handle_timelapse_images() {
 
       # now make mp4 video timelapse!
       printf '\n%s\n' "Making MP4... "
-        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers
-        # which ffmpeg doesn't like
+        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
           ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
 
@@ -540,8 +540,7 @@ handle_timelapse_images() {
           # -r 10 means essentially 10fps; 1 frame for radar image per ~5 minutes; so @10fps, 1 second of footage = ~1hr of radar data timelapsed
           # -vf to add padding to avoid potential "height not divisible by 2" crashes
           # generate timestamp based on first and last collected frames
-          # because of fiddling globbing with ffmpeg, just set pwd to where images are
-          # `ffmpeg` requires everything on one long line here as it breaks when using backslashes between switches
+          # `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason
           ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
         fi
       
@@ -560,8 +559,9 @@ handle_timelapse_images() {
 }
 
 handle_reset_cleanup() {
-  echo "are you sure?"
-  echo "this will delete everything (except rendered timelapses in /timelapse folder)"
+  # TODO
+  echo "Are you sure?"
+  echo "This will delete everything (except rendered timelapses in /timelapse folder)."
 }
 
 
