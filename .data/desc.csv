@@ -95,6 +95,7 @@ IDR04I,Newcastle NSW,Doppler wind velocity,N/A,1.2
 IDR051,Carnarvon WA,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR052,Carnarvon WA,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR053,Carnarvon WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR05A,Carnarvon WA,Rainfields per 6 minutes,N/A,1.2
 
 IDR061,Geraldton WA,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR062,Geraldton WA,Mid-scale 256km x 256km Composite,N/A,1.2
@@ -109,6 +110,7 @@ IDR06I,Geraldton WA,Doppler wind velocity,N/A,1.2
 IDR071,Wyndham WA,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR072,Wyndham WA,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR073,Wyndham WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR07A,Wyndham WA,Rainfields per 6 minutes,N/A,1.2
 
 IDR081,Gympie/Mt Kanighan QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR082,Gympie/Mt Kanighan QLD,Mid-scale 256km x 256km Composite,N/A,1.2
@@ -120,336 +122,411 @@ IDR08C,Gympie QLD,Rainfields since 9am,N/A,10
 IDR08D,Gympie QLD,Rainfields in 24 hours,N/A,240
 IDR08I,Gympie QLD,Doppler wind velocity,N/A,1.2
 
-IDR091
-IDR092
-IDR093
+IDR091,Gove NT,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR092,Gove NT,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR093,Gove NT,Local-scale 128km x 128km Composite,N/A,1.2
+IDR09A,Gove NT,Rainfields per 6 minutes,N/A,1.2
 
-IDR101
-IDR102
-IDR103
-IDR104
-IDR10I
+IDR101,Darwin NT (Backup),Broad-scale 512km x 512km Composite,N/A,1.2
+IDR102,Darwin NT (Backup),Mid-scale 256km x 256km Composite,N/A,1.2
+IDR103,Darwin NT (Backup),Local-scale 128km x 128km Composite,N/A,1.2
+IDR104,Darwin Airport NT,Local-scale 64km x 64km Composite,N/A,1.2
+IDR10I,Darwin Airport NT,Doppler wind velocity,N/A,1.2
 
-IDR1071
-IDR1072
-IDR1073
-IDR1074
-IDR107A
-IDR107B
-IDR107C
-IDR107D
-IDR107I
+IDR1071,Richmond QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR1072,Richmond QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1073,Richmond QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1074,Richmond QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR107A,Richmond QLD,Rainfields per 6 minutes,N/A,1.2
+IDR107B,Richmond QLD,Rainfields per hour,N/A,1.2
+IDR107C,Richmond QLD,Rainfields since 9am,N/A,10
+IDR107D,Richmond QLD,Rainfields in 24 hours,N/A,240
+IDR107I,Richmond QLD,Doppler wind velocity,N/A,1.2
 
-IDR141
-IDR142
-IDR143
-IDR151
-IDR152
-IDR153
-IDR154
-IDR15A
-IDR15B
-IDR15C
-IDR15D
-IDR15I
-IDR161
-IDR162
-IDR163
-IDR171
-IDR172
-IDR173
-IDR174
-IDR17A
-IDR17B
-IDR17C
-IDR17D
-IDR17I
-IDR191
-IDR192
-IDR193
-IDR194
-IDR19I
-IDR221
-IDR222
-IDR223
-IDR231
-IDR232
-IDR233
-IDR241
-IDR242
-IDR243
-IDR251
-IDR252
-IDR253
-IDR261
-IDR262
-IDR263
-IDR264
-IDR271
-IDR272
-IDR273
-IDR281
-IDR282
-IDR283
-IDR291
-IDR292
-IDR293
-IDR311
-IDR312
-IDR313
-IDR314
-IDR31A
-IDR31B
-IDR31C
-IDR31D
-IDR31I
-IDR321
-IDR322
-IDR323
-IDR324
-IDR32A
-IDR32B
-IDR32C
-IDR32D
-IDR32I
-IDR331
-IDR332
-IDR333
-IDR334
-IDR33A
-IDR33B
-IDR33C
-IDR33D
-IDR33I
-IDR361
-IDR362
-IDR363
-IDR371
-IDR372
-IDR373
-IDR381
-IDR382
-IDR383
-IDR384
-IDR38A
-IDR38B
-IDR38C
-IDR38D
-IDR38I
-IDR391
-IDR392
-IDR393
-IDR401
-IDR402
-IDR403
-IDR404
-IDR40A
-IDR40B
-IDR40C
-IDR40D
-IDR40I
-IDR421
-IDR422
-IDR423
-IDR441
-IDR442
-IDR443
-IDR461
-IDR462
-IDR463
-IDR46A
-IDR46B
-IDR46C
-IDR46D
-IDR481
-IDR482
-IDR483
-IDR484
-IDR48A
-IDR48B
-IDR48C
-IDR48D
-IDR48I
-IDR491
-IDR492
-IDR493
-IDR494
-IDR49I
-IDR501
-IDR502
-IDR503
-IDR521
-IDR522
-IDR523
-IDR524
-IDR52A
-IDR52B
-IDR52C
-IDR52D
-IDR52I
-IDR531
-IDR532
-IDR533
-IDR551
-IDR552
-IDR553
-IDR561
-IDR562
-IDR563
-IDR581
-IDR582
-IDR583
-IDR584
-IDR58A
-IDR58B
-IDR58C
-IDR58D
-IDR58I
-IDR621
-IDR622
-IDR623
-IDR631
-IDR632
-IDR633
-IDR634
-IDR63I
-IDR641
-IDR642
-IDR643
-IDR644
-IDR64A
-IDR64B
-IDR64C
-IDR64D
-IDR64I
-IDR661
-IDR662
-IDR663
-IDR664
-IDR66A
-IDR66B
-IDR66C
-IDR66D
-IDR66I
-IDR671
-IDR672
-IDR673
-IDR681
-IDR682
-IDR683
-IDR68I
-IDR691
-IDR692
-IDR693
-IDR694
-IDR69I
-IDR711
-IDR712
-IDR713
-IDR714
-IDR71A
-IDR71B
-IDR71C
-IDR71D
-IDR71I
-IDR721
-IDR722
-IDR723
-IDR724
-IDR72I
-IDR731
-IDR732
-IDR733
-IDR734
-IDR73I
-IDR741
-IDR742
-IDR743
-IDR744
-IDR74A
-IDR74B
-IDR74C
-IDR74D
-IDR74I
-IDR751
-IDR752
-IDR753
-IDR754
-IDR75A
-IDR75B
-IDR75C
-IDR75D
-IDR75I
-IDR771
-IDR772
-IDR773
-IDR774
-IDR77I
-IDR781
-IDR782
-IDR783
-IDR784
-IDR78I
-IDR791
-IDR792
-IDR793
-IDR794
-IDR79A
-IDR79B
-IDR79C
-IDR79D
-IDR79I
-IDR931
-IDR932
-IDR933
-IDR934
-IDR93A
-IDR93B
-IDR93C
-IDR93D
-IDR93I
-IDR941
-IDR942
-IDR943
-IDR944
-IDR94A
-IDR94B
-IDR94C
-IDR94D
-IDR94I
-IDR951
-IDR952
-IDR953
-IDR954
-IDR95A
-IDR95B
-IDR95C
-IDR95D
-IDR95I
-IDR961
-IDR962
-IDR963
-IDR964
-IDR96A
-IDR96B
-IDR96C
-IDR96D
-IDR96I
-IDR971
-IDR972
-IDR973
-IDR974
-IDR97A
-IDR97B
-IDR97C
-IDR97D
-IDR97I
-IDR981
-IDR982
-IDR983
-IDR984
-IDR98A
-IDR98B
-IDR98C
-IDR98D
-IDR98I
+IDR141,Mt Gambier SA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR142,Mt Gambier SA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR143,Mt Gambier SA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR14A,Mt Gambier SA,Rainfields per 6 minutes,N/A,1.2
+
+IDR151,Dampier WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR152,Dampier WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR153,Dampier WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR154,Dampier WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR15A,Dampier WA,Rainfields per 6 minutes,N/A,1.2
+IDR15B,Dampier WA,Rainfields per hour,N/A,1.2
+IDR15C,Dampier WA,Rainfields since 9am,N/A,10
+IDR15D,Dampier WA,Rainfields in 24 hours,N/A,240
+IDR15I,Dampier WA,Doppler wind velocity,N/A,1.2
+
+IDR161,Hedland WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR162,Hedland WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR163,Hedland WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR16A,Hedland WA,Rainfields per 6 minutes,N/A,1.2
+
+IDR171,Broome WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR172,Broome WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR173,Broome WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR174,Broome WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR17A,Broome WA,Rainfields per 6 minutes,N/A,1.2
+IDR17B,Broome WA,Rainfields per hour,N/A,1.2
+IDR17C,Broome WA,Rainfields since 9am,N/A,10
+IDR17D,Broome WA,Rainfields in 24 hours,N/A,240
+IDR17I,Broome WA,Doppler wind velocity,N/A,1.2
+
+IDR191,Cairns QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR192,Cairns QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR193,Cairns QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR194,Cairns QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR19I,Cairns QLD,Doppler wind velocity,N/A,1.2
+
+IDR221,Mackay QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR222,Mackay QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR223,Mackay QLD,Local-scale 128km x 128km Composite,N/A,1.2
+
+IDR231,Gladstone QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR232,Gladstone QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR233,Gladstone QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR23A,Gladstone QLD,Rainfields per 6 minutes,N/A,1.2
+
+IDR241,Bowen QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR242,Bowen QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR243,Bowen QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR24A,Bowen QLD,Rainfields per 6 minutes,N/A,1.2
+
+IDR251,Alice Springs NT,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR252,Alice Springs NT,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR253,Alice Springs NT,Local-scale 128km x 128km Composite,N/A,1.2
+IDR25A,Alice Springs NT,Rainfields per 6 minutes,N/A,1.2
+
+IDR261,Perth Airport WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR262,Perth Airport WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR263,Perth Airport WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR264,Perth Airport WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR26A,Perth Airport WA,Rainfields per 6 minutes,N/A,1.2
+
+IDR271,Woomera SA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR272,Woomera SA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR273,Woomera SA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR27A,Woomera SA,Rainfields per 6 minutes,N/A,1.2
+
+IDR281,Grafton NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR282,Grafton NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR283,Grafton NSW,Local-scale 128km x 128km Composite,N/A,1.2
+IDR28A,Grafton NSW,Rainfields per 6 minutes,N/A,1.2
+
+IDR291,Learmonth WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR292,Learmonth WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR293,Learmonth WA,Local-scale 129km x 129km Composite,N/A,1.2
+IDR29A,Learmonth WA,Rainfields per 6 minutes,N/A,1.2
+
+IDR311,Albany WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR312,Albany WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR313,Albany WA,Local-scale 131km x 131km Composite,N/A,1.2
+IDR314,Albany WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR31A,Albany WA,Rainfields per 6 minutes,N/A,1.2
+IDR31B,Albany WA,Rainfields per hour,N/A,1.2
+IDR31C,Albany WA,Rainfields since 9am,N/A,10
+IDR31D,Albany WA,Rainfields in 24 hours,N/A,240
+IDR31I,Albany WA,Doppler wind velocity,N/A,1.2
+
+IDR321,Esperance WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR322,Esperance WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR323,Esperance WA,Local-scale 132km x 132km Composite,N/A,1.2
+IDR324,Esperance WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR32A,Esperance WA,Rainfields per 6 minutes,N/A,1.2
+IDR32B,Esperance WA,Rainfields per hour,N/A,1.2
+IDR32C,Esperance WA,Rainfields since 9am,N/A,10
+IDR32D,Esperance WA,Rainfields in 24 hours,N/A,240
+IDR32I,Esperance WA,Doppler wind velocity,N/A,1.2
+
+IDR331,Ceduna SA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR332,Ceduna SA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR333,Ceduna SA,Local-scale 133km x 133km Composite,N/A,1.2
+IDR334,Ceduna SA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR33A,Ceduna SA,Rainfields per 6 minutes,N/A,1.2
+IDR33B,Ceduna SA,Rainfields per hour,N/A,1.2
+IDR33C,Ceduna SA,Rainfields since 9am,N/A,10
+IDR33D,Ceduna SA,Rainfields in 24 hours,N/A,240
+IDR33I,Ceduna SA,Doppler wind velocity,N/A,1.2
+
+IDR361,Gulf of Carpentaria QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR362,Gulf of Carpentaria QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR363,Gulf of Carpentaria QLD,Local-scale 136km x 136km Composite,N/A,1.2
+IDR36A,Gulf of Carpentaria QLD,Rainfields per 6 minutes,N/A,1.2
+
+IDR371,Hobart TAS,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR372,Hobart TAS,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR373,Hobart TAS,Local-scale 137km x 137km Composite,N/A,1.2
+IDR37A,Hobart TAS,Rainfields per 6 minutes,N/A,1.2
+
+IDR381,Newdegate WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR382,Newdegate WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR383,Newdegate WA,Local-scale 138km x 138km Composite,N/A,1.2
+IDR384,Newdegate WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR38A,Newdegate WA,Rainfields per 6 minutes,N/A,1.2
+IDR38B,Newdegate WA,Rainfields per hour,N/A,1.2
+IDR38C,Newdegate WA,Rainfields since 9am,N/A,10
+IDR38D,Newdegate WA,Rainfields in 24 hours,N/A,240
+IDR38I,Newdegate WA,Doppler wind velocity,N/A,1.2
+
+IDR391,Halls Creek WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR392,Halls Creek WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR393,Halls Creek WA,Local-scale 139km x 139km Composite,N/A,1.2
+IDR39A,Halls Creek WA,Rainfields per 6 minutes,N/A,1.2
+
+IDR401,Canberra/Captains Flat NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR402,Canberra/Captains Flat NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR403,Canberra/Captains Flat NSW,Local-scale 140km x 140km Composite,N/A,1.2
+IDR404,Canberra/Captains Flat NSW,Local-scale 64km x 64km Composite,N/A,1.2
+IDR40A,Canberra/Captains Flat NSW,Rainfields per 6 minutes,N/A,1.2
+IDR40B,Canberra/Captains Flat NSW,Rainfields per hour,N/A,1.2
+IDR40C,Canberra/Captains Flat NSW,Rainfields since 9am,N/A,10
+IDR40D,Canberra/Captains Flat NSW,Rainfields in 24 hours,N/A,240
+IDR40I,Canberra/Captains Flat NSW,Doppler wind velocity,N/A,1.2
+
+IDR421,Katherine/Tindal NT,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR422,Katherine/Tindal NT,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR423,Katherine/Tindal NT,Local-scale 142km x 142km Composite,N/A,1.2
+IDR42A,Katherine/Tindal NT,Rainfields per 6 minutes,N/A,1.2
+
+IDR421,Giles WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR422,Giles WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR423,Giles WA,Local-scale 142km x 142km Composite,N/A,1.2
+IDR42A,Giles WA,Rainfields per 6 minutes,N/A,1.2
+
+IDR461,Adelaide Sellick's Hill SA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR462,Adelaide Sellick's Hill SA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR463,Adelaide Sellick's Hill SA,Local-scale 146km x 146km Composite,N/A,1.2
+IDR46A,Adelaide Sellick's Hill SA,Rainfields per 6 minutes,N/A,1.2
+IDR46B,Adelaide Sellick's Hill SA,Rainfields per hour,N/A,1.2
+IDR46C,Adelaide Sellick's Hill SA,Rainfields since 9am,N/A,10
+IDR46D,Adelaide Sellick's Hill SA,Rainfields in 24 hours,N/A,246
+
+IDR481,Kalgoorlie WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR482,Kalgoorlie WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR483,Kalgoorlie WA,Local-scale 148km x 148km Composite,N/A,1.2
+IDR484,Kalgoorlie WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR48A,Kalgoorlie WA,Rainfields per 6 minutes,N/A,1.2
+IDR48B,Kalgoorlie WA,Rainfields per hour,N/A,1.2
+IDR48C,Kalgoorlie WA,Rainfields since 9am,N/A,10
+IDR48D,Kalgoorlie WA,Rainfields in 24 hours,N/A,248
+IDR48I,Kalgoorlie WA,Doppler wind velocity,N/A,1.2
+
+IDR491,Yarrawonga VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR492,Yarrawonga VIC,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR493,Yarrawonga VIC,Local-scale 149km x 149km Composite,N/A,1.2
+IDR494,Yarrawonga VIC,Local-scale 64km x 64km Composite,N/A,1.2
+IDR49I,Yarrawonga VIC,Doppler wind velocity,N/A,1.2
+
+IDR501,Brisbane/Marburg QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR502,Brisbane/Marburg QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR503,Brisbane/Marburg QLD,Local-scale 150km x 150km Composite,N/A,1.2
+
+IDR521,NW Tasmania/West Takone TAS,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR522,NW Tasmania/West Takone TAS,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR523,NW Tasmania/West Takone TAS,Local-scale 152km x 152km Composite,N/A,1.2
+IDR524,NW Tasmania/West Takone TAS,Local-scale 64km x 64km Composite,N/A,1.2
+IDR52A,NW Tasmania/West Takone TAS,Rainfields per 6 minutes,N/A,1.2
+IDR52B,NW Tasmania/West Takone TAS,Rainfields per hour,N/A,1.2
+IDR52C,NW Tasmania/West Takone TAS,Rainfields since 9am,N/A,10
+IDR52D,NW Tasmania/West Takone TAS,Rainfields in 24 hours,N/A,252
+IDR52I,NW Tasmania/West Takone TAS,Doppler wind velocity,N/A,1.2
+
+IDR531,Moree NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR532,Moree NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR533,Moree NSW,Local-scale 153km x 153km Composite,N/A,1.2
+IDR53A,Moree NSW,Rainfields per 6 minutes,N/A,1.2
+
+IDR551,Wagga Wagga NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR552,Wagga Wagga NSW,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR553,Wagga Wagga NSW,Local-scale 155km x 155km Composite,N/A,1.2
+IDR55A,Wagga Wagga NSW,Rainfields per 6 minutes,N/A,1.2
+
+IDR561,Longreach QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR562,Longreach QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR563,Longreach QLD,Local-scale 156km x 156km Composite,N/A,1.2
+IDR56A,Longreach QLD,Rainfields per 6 minutes,N/A,1.2
+
+IDR581,South Doodlakine WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR582,South Doodlakine WA,Mid-scale 258km x 258km Composite,N/A,1.2
+IDR583,South Doodlakine WA,Local-scale 158km x 158km Composite,N/A,1.2
+IDR584,South Doodlakine WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR58A,South Doodlakine WA,Rainfields per 6 minutes,N/A,1.2
+IDR58B,South Doodlakine WA,Rainfields per hour,N/A,1.2
+IDR58C,South Doodlakine WA,Rainfields since 9am,N/A,10
+IDR58D,South Doodlakine WA,Rainfields in 24 hours,N/A,258
+IDR58I,South Doodlakine WA,Doppler wind velocity,N/A,1.2
+
+IDR621,Norfolk Island NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR622,Norfolk Island NSW,Mid-scale 262km x 262km Composite,N/A,1.2
+IDR623,Norfolk Island NSW,Local-scale 162km x 162km Composite,N/A,1.2
+IDR62A,Norfolk Island NSW,Rainfields per 6 minutes,N/A,1.2
+
+IDR631,Darwin/Berrimah NT,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR632,Darwin/Berrimah NT,Mid-scale 263km x 263km Composite,N/A,1.2
+IDR633,Darwin/Berrimah NT,Local-scale 163km x 163km Composite,N/A,1.2
+IDR634,Darwin/Berrimah NT,Local-scale 64km x 64km Composite,N/A,1.2
+IDR63A,Darwin/Berrimah NT,Rainfields per 6 minutes,N/A,1.2
+IDR63I,Darwin/Berrimah NT,Doppler wind velocity,N/A,1.2
+
+IDR641,Buckland Park SA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR642,Buckland Park SA,Mid-scale 264km x 264km Composite,N/A,1.2
+IDR643,Buckland Park SA,Local-scale 164km x 164km Composite,N/A,1.2
+IDR644,Buckland Park SA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR64A,Buckland Park SA,Rainfields per 6 minutes,N/A,1.2
+IDR64B,Buckland Park SA,Rainfields per hour,N/A,1.2
+IDR64C,Buckland Park SA,Rainfields since 9am,N/A,10
+IDR64D,Buckland Park SA,Rainfields in 24 hours,N/A,264
+IDR64I,Buckland Park SA,Doppler wind velocity,N/A,1.2
+
+IDR661,Mt Stapylton QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR662,Mt Stapylton QLD,Mid-scale 266km x 266km Composite,N/A,1.2
+IDR663,Mt Stapylton QLD,Local-scale 166km x 166km Composite,N/A,1.2
+IDR664,Mt Stapylton QLD,Local-scale 66km x 66km Composite,N/A,1.2
+IDR66A,Mt Stapylton QLD,Rainfields per 6 minutes,N/A,1.2
+IDR66B,Mt Stapylton QLD,Rainfields per hour,N/A,1.2
+IDR66C,Mt Stapylton QLD,Rainfields since 9am,N/A,10
+IDR66D,Mt Stapylton QLD,Rainfields in 24 hours,N/A,266
+IDR66I,Mt Stapylton QLD,Doppler wind velocity,N/A,1.2
+
+IDR671,Warrego QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR672,Warrego QLD,Mid-scale 267km x 267km Composite,N/A,1.2
+IDR673,Warrego QLD,Local-scale 167km x 167km Composite,N/A,1.2
+IDR67A,Warrego QLD,Rainfields per 6 minutes,N/A,1.2
+
+IDR681,Bairnsdale VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR682,Bairnsdale VIC,Mid-scale 268km x 268km Composite,N/A,1.2
+IDR683,Bairnsdale VIC,Local-scale 168km x 168km Composite,N/A,1.2
+IDR68A,Bairnsdale VIC,Rainfields per 6 minutes,N/A,1.2
+IDR68I,Bairnsdale VIC,Doppler wind velocity,N/A,1.2
+
+IDR691,Namoi (Blackjack Mountain) NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR692,Namoi (Blackjack Mountain) NSW,Mid-scale 269km x 269km Composite,N/A,1.2
+IDR693,Namoi (Blackjack Mountain) NSW,Local-scale 169km x 169km Composite,N/A,1.2
+IDR694,Namoi (Blackjack Mountain) NSW,Local-scale 69km x 69km Composite,N/A,1.2
+IDR69I,Namoi (Blackjack Mountain) NSW,Doppler wind velocity,N/A,1.2
+
+IDR711,Terrey Hills NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR712,Terrey Hills NSW,Mid-scale 271km x 271km Composite,N/A,1.2
+IDR713,Terrey Hills NSW,Local-scale 171km x 171km Composite,N/A,1.2
+IDR714,Terrey Hills NSW,Local-scale 71km x 71km Composite,N/A,1.2
+IDR71A,Terrey Hills NSW,Rainfields per 6 minutes,N/A,1.2
+IDR71B,Terrey Hills NSW,Rainfields per hour,N/A,1.2
+IDR71C,Terrey Hills NSW,Rainfields since 9am,N/A,10
+IDR71D,Terrey Hills NSW,Rainfields in 24 hours,N/A,271
+IDR71I,Terrey Hills NSW,Doppler wind velocity,N/A,1.2
+
+IDR721,Emerald QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR722,Emerald QLD,Mid-scale 272km x 272km Composite,N/A,1.2
+IDR723,Emerald QLD,Local-scale 172km x 172km Composite,N/A,1.2
+IDR724,Emerald QLD,Local-scale 72km x 72km Composite,N/A,1.2
+IDR72I,Emerald QLD,Doppler wind velocity,N/A,1.2
+
+IDR731,Townsville (Hervey Range) QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR732,Townsville (Hervey Range) QLD,Mid-scale 273km x 273km Composite,N/A,1.2
+IDR733,Townsville (Hervey Range) QLD,Local-scale 173km x 173km Composite,N/A,1.2
+IDR734,Townsville (Hervey Range) QLD,Local-scale 73km x 73km Composite,N/A,1.2
+IDR73I,Townsville (Hervey Range) QLD,Doppler wind velocity,N/A,1.2
+
+IDR741,Greenvale QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR742,Greenvale QLD,Mid-scale 274km x 274km Composite,N/A,1.2
+IDR743,Greenvale QLD,Local-scale 174km x 174km Composite,N/A,1.2
+IDR744,Greenvale QLD,Local-scale 74km x 74km Composite,N/A,1.2
+IDR74A,Greenvale QLD,Rainfields per 6 minutes,N/A,1.2
+IDR74B,Greenvale QLD,Rainfields per hour,N/A,1.2
+IDR74C,Greenvale QLD,Rainfields since 9am,N/A,10
+IDR74D,Greenvale QLD,Rainfields in 24 hours,N/A,274
+IDR74I,Greenvale QLD,Doppler wind velocity,N/A,1.2
+
+IDR751,Mount Isa QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR752,Mount Isa QLD,Mid-scale 275km x 275km Composite,N/A,1.2
+IDR753,Mount Isa QLD,Local-scale 175km x 175km Composite,N/A,1.2
+IDR754,Mount Isa QLD,Local-scale 75km x 75km Composite,N/A,1.2
+IDR75A,Mount Isa QLD,Rainfields per 6 minutes,N/A,1.2
+IDR75B,Mount Isa QLD,Rainfields per hour,N/A,1.2
+IDR75C,Mount Isa QLD,Rainfields since 9am,N/A,10
+IDR75D,Mount Isa QLD,Rainfields in 24 hours,N/A,275
+IDR75I,Mount Isa QLD,Doppler wind velocity,N/A,1.2
+
+IDR771,Warruwi (Arafura) NT,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR772,Warruwi (Arafura) NT,Mid-scale 277km x 277km Composite,N/A,1.2
+IDR773,Warruwi (Arafura) NT,Local-scale 177km x 177km Composite,N/A,1.2
+IDR774,Warruwi (Arafura) NT,Local-scale 77km x 77km Composite,N/A,1.2
+IDR77D,Warruwi (Arafura) NT,Rainfields in 24 hours,N/A,277
+IDR77I,Warruwi (Arafura) NT,Doppler wind velocity,N/A,1.2
+
+IDR781,Weipa QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR782,Weipa QLD,Mid-scale 278km x 278km Composite,N/A,1.2
+IDR783,Weipa QLD,Local-scale 178km x 178km Composite,N/A,1.2
+IDR784,Weipa QLD,Local-scale 78km x 78km Composite,N/A,1.2
+IDR78I,Weipa QLD,Doppler wind velocity,N/A,1.2
+
+IDR791,Watheroo QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR792,Watheroo QLD,Mid-scale 279km x 279km Composite,N/A,1.2
+IDR793,Watheroo QLD,Local-scale 179km x 179km Composite,N/A,1.2
+IDR794,Watheroo QLD,Local-scale 79km x 79km Composite,N/A,1.2
+IDR79A,Watheroo QLD,Rainfields per 6 minutes,N/A,1.2
+IDR79B,Watheroo QLD,Rainfields per hour,N/A,1.2
+IDR79C,Watheroo QLD,Rainfields since 9am,N/A,10
+IDR79D,Watheroo QLD,Rainfields in 24 hours,N/A,279
+IDR79I,Watheroo QLD,Doppler wind velocity,N/A,1.2
+
+IDR931,Brewarrina NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR932,Brewarrina NSW,Mid-scale 293km x 293km Composite,N/A,1.2
+IDR933,Brewarrina NSW,Local-scale 193km x 193km Composite,N/A,1.2
+IDR934,Brewarrina NSW,Local-scale 93km x 93km Composite,N/A,1.2
+IDR93A,Brewarrina NSW,Rainfields per 6 minutes,N/A,1.2
+IDR93B,Brewarrina NSW,Rainfields per hour,N/A,1.2
+IDR93C,Brewarrina NSW,Rainfields since 9am,N/A,10
+IDR93D,Brewarrina NSW,Rainfields in 24 hours,N/A,293
+IDR93I,Brewarrina NSW,Doppler wind velocity,N/A,1.2
+
+IDR941,Hillston NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR942,Hillston NSW,Mid-scale 294km x 294km Composite,N/A,1.2
+IDR943,Hillston NSW,Local-scale 194km x 194km Composite,N/A,1.2
+IDR944,Hillston NSW,Local-scale 94km x 94km Composite,N/A,1.2
+IDR94A,Hillston NSW,Rainfields per 6 minutes,N/A,1.2
+IDR94B,Hillston NSW,Rainfields per hour,N/A,1.2
+IDR94C,Hillston NSW,Rainfields since 9am,N/A,10
+IDR94D,Hillston NSW,Rainfields in 24 hours,N/A,294
+IDR94I,Hillston NSW,Doppler wind velocity,N/A,1.2
+
+IDR951,Rainbow VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR952,Rainbow VIC,Mid-scale 295km x 295km Composite,N/A,1.2
+IDR953,Rainbow VIC,Local-scale 195km x 195km Composite,N/A,1.2
+IDR954,Rainbow VIC,Local-scale 95km x 95km Composite,N/A,1.2
+IDR95A,Rainbow VIC,Rainfields per 6 minutes,N/A,1.2
+IDR95B,Rainbow VIC,Rainfields per hour,N/A,1.2
+IDR95C,Rainbow VIC,Rainfields since 9am,N/A,10
+IDR95D,Rainbow VIC,Rainfields in 24 hours,N/A,295
+IDR95I,Rainbow VIC,Doppler wind velocity,N/A,1.2
+
+IDR961,Yeoval NSW,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR962,Yeoval NSW,Mid-scale 296km x 296km Composite,N/A,1.2
+IDR963,Yeoval NSW,Local-scale 196km x 196km Composite,N/A,1.2
+IDR964,Yeoval NSW,Local-scale 96km x 96km Composite,N/A,1.2
+IDR96A,Yeoval NSW,Rainfields per 6 minutes,N/A,1.2
+IDR96B,Yeoval NSW,Rainfields per hour,N/A,1.2
+IDR96C,Yeoval NSW,Rainfields since 9am,N/A,10
+IDR96D,Yeoval NSW,Rainfields in 24 hours,N/A,296
+IDR96I,Yeoval NSW,Doppler wind velocity,N/A,1.2
+
+IDR971,Mildura VIC,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR972,Mildura VIC,Mid-scale 297km x 297km Composite,N/A,1.2
+IDR973,Mildura VIC,Local-scale 197km x 197km Composite,N/A,1.2
+IDR974,Mildura VIC,Local-scale 97km x 97km Composite,N/A,1.2
+IDR97A,Mildura VIC,Rainfields per 6 minutes,N/A,1.2
+IDR97B,Mildura VIC,Rainfields per hour,N/A,1.2
+IDR97C,Mildura VIC,Rainfields since 9am,N/A,10
+IDR97D,Mildura VIC,Rainfields in 24 hours,N/A,297
+IDR97I,Mildura VIC,Doppler wind velocity,N/A,1.2
+
+IDR981,Taroom QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR982,Taroom QLD,Mid-scale 298km x 298km Composite,N/A,1.2
+IDR983,Taroom QLD,Local-scale 198km x 198km Composite,N/A,1.2
+IDR984,Taroom QLD,Local-scale 98km x 98km Composite,N/A,1.2
+IDR98A,Taroom QLD,Rainfields per 6 minutes,N/A,1.2
+IDR98B,Taroom QLD,Rainfields per hour,N/A,1.2
+IDR98C,Taroom QLD,Rainfields since 9am,N/A,10
+IDR98D,Taroom QLD,Rainfields in 24 hours,N/A,298
+IDR98I,Taroom QLD,Doppler wind velocity,N/A,1.2
