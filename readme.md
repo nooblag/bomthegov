@@ -17,7 +17,7 @@ It's tested but unstable, and of course, a hacky hobby project, so use as beerwa
 Make sure you have the required software on your system:
 
 ```
-sudo apt install gawk curl ncftp imagemagick ffmpeg
+sudo apt install git gawk curl ncftp imagemagick ffmpeg
 ```
 
 Clone this repo and go into it:
