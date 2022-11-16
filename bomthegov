@@ -506,22 +506,38 @@ handle_timelapse_images() {
             [[ "${id}" =~ [A-D]$ ]] && legend="${wd}/images/radar/legend/IDR.legend.1.png"
             # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
             [[ "${id}" =~ I$ ]] && legend="${wd}/images/radar/legend/IDR.legend.2.png"
+
           printf '%s' "Preparing radar image layers... "
-          for file in "${files[@]}"; do
-            convert -quiet \
-              "${legend}" \
-              "layers/*.background.png" \
-              "layers/*.topography.png" \
-              "layers/*.locations.png" \
-              "layers/*.range.png" \
-              "$file" -flatten "${scratch}/${file##*/}"
-          done  
+          # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
+          # otherwise, it's a radar as "usual" so assemble those layers
+          # such a messy bom
+          if [[ "${id}" == 'IDR00004' ]]; then
+            # the conversion loop should exclude layers that don't exist for national radar
+            for file in "${files[@]}"; do
+              convert -quiet \
+                "${legend}" \
+                "layers/*.background.png" \
+                "$file" -flatten "${scratch}/${file##*/}"
+            done
+          else
+            # a radar as usual, so conversion loop should assemble known/desired layers
+            for file in "${files[@]}"; do
+              convert -quiet \
+                "${legend}" \
+                "layers/*.background.png" \
+                "layers/*.topography.png" \
+                "layers/*.locations.png" \
+                "layers/*.range.png" \
+                "$file" -flatten "${scratch}/${file##*/}"
+            done
+          fi
         fi
         
       # now get the first and last names of files we're timelapsing, for use in a moment to generate label for MP4 file
       first_file="${files[0]##*/}"
       last_file="${files[${#files[@]}-1]##*/}" # looks messy because to get last array item, we need total number of keys minus one
       # determine each file's creation date and time to discern timeframe of capture
+      # utc is also useful as bom/generic weather seems to prefer that for consistency (although, bom not always)
       timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
       timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
       timelapse_file="${wd}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
