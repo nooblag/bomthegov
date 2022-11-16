@@ -172,7 +172,7 @@ get_radar_list() {
 get_timelapse_list() {
   # find directories in image storage that have content in them and generate a list of what paths might be usable
   # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
-  find "${wd}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print > image-paths.list
+  find "${wd}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
   if ! [[ -s image-paths.list ]]; then
     printf "%s\n\n" "No image sets found. Try collecting some images?"
     printf '%s\n\n' "If you need help, try: 'bash $0 help'"
