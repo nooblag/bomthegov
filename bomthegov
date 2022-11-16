@@ -493,7 +493,8 @@ handle_timelapse_images() {
             # so use [0] after file name which `convert` interprets as "get the first layer only"
             # ensure we are converting to jpegs by removing current filename's extension and popping in .jpg
             # also do this quietly to avoid warning messages about tif layers that we might encounter
-            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"
+            # make sure to capture convert's exit status for success checking later
+            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result=$?
           done
           
         # if we're making a timelapse of a radar, assemble its layers
@@ -513,11 +514,12 @@ handle_timelapse_images() {
           # such a messy bom
           if [[ "${id}" == 'IDR00004' ]]; then
             # the conversion loop should exclude layers that don't exist for national radar
+            # make sure to capture convert's exit status for success checking later
             for file in "${files[@]}"; do
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
-                "$file" -flatten "${scratch}/${file##*/}"
+                "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
             done
           else
             # a radar as usual, so conversion loop should assemble known/desired layers
@@ -528,7 +530,7 @@ handle_timelapse_images() {
                 "layers/*.topography.png" \
                 "layers/*.locations.png" \
                 "layers/*.range.png" \
-                "$file" -flatten "${scratch}/${file##*/}"
+                "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
             done
           fi
         fi
@@ -549,7 +551,8 @@ handle_timelapse_images() {
       printf '\n%s\n' "Making MP4... "
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
-          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
+          # make sure to capture ffmpeg's exit status for success checking later
+          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffpmeg_result=$?
 
         # if we're making a timelapse of a radar, we use the assembled png files
         elif [[ "${context}" == 'radar' ]]; then
@@ -557,16 +560,17 @@ handle_timelapse_images() {
           # -vf to add padding to avoid potential "height not divisible by 2" crashes
           # generate timestamp based on first and last collected frames
           # `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason
-          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"
+          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffpmeg_result=$?
         fi
       
       # after a successful timelapse is made, move the stored images folder to archive and clean up the remaining folder once that's done
       # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
-      mkdir --parents "${wd}/images/.archive/${context}/${id}" || exit 2
-      cd "${wd}" || exit 2
-      mv --force "${wd}/images/${context}/${id}/"*.* "${wd}/images/.archive/${context}/${id}/" && rm --force --recursive "${wd}/images/${context}/${id}"
-      # also ensure scratch cleanup
-      rm --force --recursive "${scratch}"
+      if [[ ${convert_result} -eq 0 && ${ffpmeg_result} -eq 0 ]]; then
+        printf '\n%s\n\n' "Creating ${id} timelapse completed successfully."
+        mkdir --parents "${wd}/images/.archive/${context}/${id}" || exit 2
+        cd "${wd}" || exit 2
+        mv --force "${wd}/images/${context}/${id}/"*.* "${wd}/images/.archive/${context}/${id}/" && rm --force --recursive "${wd}/images/${context}/${id}"
+      fi
       
       # open the timelapse video file in the user's preferred application
       ##xdg-open "${timelapse_file}"
