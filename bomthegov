@@ -2,7 +2,13 @@
 
 # jore - fetch radar and satellite images from bom the gov and build stop-animations from collected data
 
+
 ## set up environment
+# references for mapping exit codes
+  # exit_1='software or file dependency fail'
+  # exit_2='problem working with paths'
+  # exit_3='failure related to user input'
+
 # this script assumes a debian-based system, quietly check this system is supported before doing anything
 if ! command dpkg --version > /dev/null 2>&1; then
   printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
@@ -13,37 +19,32 @@ fi
 # now check if the following dependent software packages are ready to go
 # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
 dependencies=('gawk' 'ncftp' 'curl' 'imagemagick' 'ffmpeg')
-for which in "${dependencies[@]}"; do
+for package in "${dependencies[@]}"; do
   # quietly check with package manager if required software is installed
-  dpkg --status "${which}" > /dev/null 2>&1 || { failed+=("${which}"); }
+  dpkg --status "${package}" > /dev/null 2>&1 || { failed+=("${package}"); }
 done
-  # if $failed array contains something, then report what is missing
-  if [[ "${#failed[@]}" -ne 0 ]]; then
+# if $failed array contains something, then report what is missing
+if [[ "${#failed[@]}" -ne 0 ]]; then
   printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
   # use `tput` to set the colour
   printf '%s%s' "sudo apt install" "$(tput setaf 3)"
-  # iterates over each missing program in 'failed' array
-    for which in "${failed[@]}"; do
-    printf ' %s' "${which}"
-    done
+  # iterate over each missing program in 'failed' array
+  for package in "${failed[@]}"; do
+    printf ' %s' "${package}"
+  done
   # reset colour
   printf '%s\n\n' "$(tput sgr0)"
   # stop here and exit with error code 1
   exit 1
-  fi
-
-# references for mapping exit codes
-  # exit_1='software or file dependency fail'
-  # exit_2='problem working with paths'
-  # exit_3='failure related to user input'
+fi
 
 # determine and set up relative paths
 fullpath_and_name="$(readlink --canonicalize "${0}")"
 wd="$(dirname "${fullpath_and_name}")"
 # name of this file only: ${0##*/}
 # relative path and name: ${0}
-# fullpath and name: ${fullpath_and_name}
-# path to this file only: ${wd}
+# full path and name: ${fullpath_and_name}
+# full path to this file only: ${wd}
 
 # ensure bundled data files exist and are not empty
 if ! [[ -s "${wd}/.data/desc.csv" ]]; then
@@ -57,7 +58,7 @@ mkdir --parents "${wd}/.tmp" "${wd}/images" || exit 2
 # set a temporary storage for this session
 tmp="$(mktemp --directory --tmpdir="${wd}/.tmp" .session-XXXXXXXXXXXXXXXX)"
 
-# set a trap to ensure garbage collection from this session from now on
+# set a trap to ensure garbage collection from now on
 trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
 
 # set the temporary storage as the working directory
@@ -77,13 +78,14 @@ display_about() {
 	A tool to fetch radar or satellite images at set intervals from
 	the Australien [sic] Bureau of Meteorology (BOM) public archive,
 	and build simple timelapse videos from collected images.
+
 	end_cat
 }
 
 # initial help
 display_help() {
   # display the about information first
-  display_about && echo
+  display_about
   # then explain how to use this thing, with examples
   cat <<-end_cat
 	Usage: bash $0 <option>
@@ -103,8 +105,8 @@ display_help() {
 }
 
 display_satellite_help() {
-  echo
   cat <<-end_cat
+
 	Usage: bash $0 satellite <option>
 
 	Available options:
@@ -114,16 +116,14 @@ display_satellite_help() {
 
 	For example:
 	  'bash $0 satellite IDE00435'
-	will start collecting images from the IDE00425 satellite.
-
-	Image collection continues until CTRL+C is pressed.
+	will start collecting images from the Himawari-8 satellite.
 
 	end_cat
 }
 
 display_radar_help() {
-  echo
   cat <<-end_cat
+
 	Usage: bash $0 radar <option>
 
 	Available options:
@@ -132,22 +132,20 @@ display_radar_help() {
 	  help        Display this help message.
 
 	For example:
-	  'bash $0 radar IDE00435'
-	will start collecting images from the ?????? rain radar.
-
-	Image collection continues until CTRL+C is pressed.
+	  'bash $0 radar IDR421'
+	will start collecting images from the Giles WA rain radar.
 
 	end_cat
 }
 
 display_timelapse_help() {
-  echo
   cat <<-end_cat
+
 	Usage: bash $0 timelapse <option>
 
 	Available options:
 	  list        Display a list of collected image sets.
-  	  <id>        Make a timelapse video for a specific radar
+	  <id>        Make a timelapse video for a specific radar
 	              or satellite ID.
 	  help        Display this help message.
 
@@ -157,15 +155,15 @@ display_timelapse_help() {
 get_satellite_list() {
   # dump entire satellite directory
   ncftpls 'ftp://ftp.bom.gov.au/anon/gen/gms/' > gms.list
-  # pattern match the list for expected image files only, to ignore any html, shtml, json, or tmp files that may generate false positives
-  # then extract the IDs (1st field) and unique sort to remove duplicate
+  # pattern match the list for IDs with expected image files only, to ignore any html, shtml, json, or tmp files that will generate false positives
+  # then extract the IDs (1st field) and unique sort to remove duplicates
   # match IDs that have tif or jpg images only
   gawk --field-separator='.' '/^.*\.tif$|\.jpg$/ {print $1}' gms.list | sort --unique > satellite-IDs.list
 }
 
 get_radar_list() {
   ncftpls 'ftp://ftp.bom.gov.au/anon/gen/radar/' > radar.list
-  # match IDs that have .png files only
+  # match IDs that have png files only
   gawk --field-separator='.' '/^.*\.png$/ {print $1}' radar.list | sort --unique > radar-IDs.list
 }
 
@@ -173,6 +171,7 @@ get_timelapse_list() {
   # find directories in image storage that have content in them and generate a list of what paths might be usable
   # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
   find "${wd}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
+  # if list file size is zero, then we have nothing to work with
   if ! [[ -s image-paths.list ]]; then
     printf "%s\n\n" "No image sets found. Try collecting some images?"
     printf '%s\n\n' "If you need help, try: 'bash $0 help'"
@@ -190,17 +189,18 @@ get_timelapse_list() {
 }
 
 merge_lists() {
-  # prettify and display a list of IDs with descriptive data from CSV file
   # match found IDs using `awk` from a CSV file that contains rows of descriptive data about known IDs  
+  # merge the two data sets and then prettify the results to display them
   # can find/replace on both satellite or radars lists
   local csv_file="$1"
   local list_file="$2"
   local arg="$3" # used to determine if we should prettify display or not
   # thanks to @SasaK for the help with `awk` here
   gawk --field-separator=',' '
-    # put the function arg into a variable for awk (we have to weirdly escape it because of nested quoting)
+    # put the function arg into a variable for awk (we have to weirdly quote it because of nested quoting)
     # to test later whether we are writing in CSV format or displaying a pretty list
-    BEGIN {prettify = "'"$arg"'"}
+    BEGIN { prettify = "'"$arg"'" }
+
     # set up prettification
     function make_newline(line) {
       newline = ""
@@ -213,6 +213,7 @@ merge_lists() {
       }
       return substr(newline, 2)
     }
+
     # if we are going through the CSV file, take the data from CSV file and match it against the list of IDs
     {
       if (NR == FNR) {
@@ -257,24 +258,25 @@ strict_test_satellite_id() {
 strict_test_radar_id() {
   local user_input="${1}"
   # radar IDs should start with 'IDR' and contain at least 3 alpha/numeric characters, max of 5 (8 characters max in total)
-  if [[ "${user_input}" =~ ^IDR[0-9|A-Z]{3,5}$ ]]; then id_type='radar' && return 0; else return 3; fi
+  # expect A B C D or I
+  if [[ "${user_input}" =~ ^IDR[0-9|A-D|I]{3,5}$ ]]; then id_type='radar' && return 0; else return 3; fi
 }
 
 handle_user_input() {
-  local context="${1}" # $1 being the arg(passed to this function, which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
+  local context="${1}" # $1 being the arg passed to this function, which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
   # $2 is unsanitised user input
   # accept input with lowercase letters, which is good for lazy typing, but bump everything in $2 to uppercase with ^^ parameter expansion
   local user_input="${2^^}"
   # we need uppercase sanitised input for strict `grep` checking and also correct FTP file pattern matching throughout (important!)
-  # so test $2 thoroughly, to both see what we have is an expected format in its context, and try avoid trouble as much as possible
+  # test $2 thoroughly, to both see what we have is an expected format in its context, and try avoid trouble as much as possible
   # user input here is used to build paths and filenames and so on
   case "${context}" in
     'satellite')
       if strict_test_satellite_id "${user_input}"; then
         id="${user_input}"
       else
-        printf "'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid satellite ID." "Expected ID is 8 alpha-numeric characters, starting with 'IDE'." "For example: IDE00135"
-        printf '%s\n' "Try 'bash $0 satellite list' to display a list of available IDs."
+        printf "\n'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid satellite ID." "Expected ID is 8 alpha-numeric characters, starting with 'IDE'." "For example: IDE00135"
+        printf '%s\n\n' "Try 'bash $0 satellite list' to display a list of available IDs."
         exit 3
       fi
     ;;
@@ -282,8 +284,8 @@ handle_user_input() {
       if strict_test_radar_id "${user_input}"; then
         id="${user_input}"
       else
-        printf "'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid radar ID." "Expected ID is 6 to 8 alpha-numeric characters, starting with 'IDR'." "For example: IDR034"
-        printf '%s\n' "Try 'bash $0 radar list' to display a list of available IDs."
+        printf "\n'%s' %s\n%s\n\n%s\n" "${user_input}" "is not a valid radar ID." "Expected ID is 6 to 8 alpha-numeric characters, starting with 'IDR'." "For example: IDR034"
+        printf '%s\n\n' "Try 'bash $0 radar list' to display a list of available IDs."
         exit 3
       fi
     ;;
@@ -291,8 +293,8 @@ handle_user_input() {
       if strict_test_radar_id "${user_input}" || strict_test_satellite_id "${user_input}"; then
         id="${user_input}"
       else
-        printf "'%s' %s\n" "${user_input}" "appears to be an invalid ID."
-        printf '%s\n' "Try 'bash $0 timelapse list' to display a list of available IDs."
+        printf "\n'%s' %s\n" "${user_input}" "is not a valid ID."
+        printf '%s\n\n' "Try 'bash $0 timelapse list' to display a list of available IDs."
         exit 3
       fi
     ;;
@@ -328,7 +330,8 @@ handle_satellite_images() {
       get_satellite_list
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
-        printf "'%s' %s\n%s\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
+        printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
+        printf '%s\n\n' "Try 'bash $0 satellite list' to display a list of available IDs."
         exit 3
       fi
       
@@ -373,7 +376,8 @@ handle_radar_images() {
       get_radar_list
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
-        printf "'%s' %s\n%s\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
+        printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
+        printf '%s\n\n' "Try 'bash $0 radar list' to display a list of available IDs."
         exit 3
       fi
       
@@ -471,8 +475,8 @@ handle_timelapse_images() {
       # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here?)
       # this method of checking is also handy because we reduce processing later by having matched files ready to go in an array
       if ! [[ -d "${wd}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
-        printf "'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
-        printf '%s\n' "Try 'bash $0 ${context} ${id}' to start collecting images first."
+        printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
+        printf '%s\n\n' "Try 'bash $0 ${context} ${id}' to start collecting images first."
         exit 3
       fi
       
