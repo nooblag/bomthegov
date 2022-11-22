@@ -8,6 +8,7 @@
   # exit_1='software or file dependency fail'
   # exit_2='problem working with paths'
   # exit_3='failure related to user input'
+  # exit_4='failure fetching remote data or networking error'
 
 # this script assumes a debian-based system, quietly check this system is supported before doing anything
 # use -v to do verbose binaries search, -p to use default value(s) for PATH
@@ -156,7 +157,7 @@ display_timelapse_help() {
 
 get_satellite_list() {
   # dump entire satellite directory
-  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/gms/' > gms.list
+  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/gms/' > gms.list || exit 4
   # pattern match the list for IDs with expected image files only, to ignore any html, shtml, json, or tmp files that will generate false positives
   # then extract the IDs (1st field) and unique sort to remove duplicates
   # match IDs that have tif or jpg images only
@@ -164,7 +165,7 @@ get_satellite_list() {
 }
 
 get_radar_list() {
-  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/radar/' > radar.list
+  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/radar/' > radar.list || exit 4
   # match IDs that have png files only
   gawk --field-separator='.' '/^.*\.png$/ {print $1}' radar.list | sort --unique > radar-IDs.list
 }
@@ -387,7 +388,7 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/${id}" || exit 2
       cd "${wd}/images/radar/${id}/" || exit 2
       # get the radar images
-      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png"
+      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png" || exit 4
       
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
@@ -416,18 +417,18 @@ handle_radar_images() {
           --time-cond 'IDR00004.background.png' \
           --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
           --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
-          --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png'
+          --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
      
       # then if the ID ends in A B C D or I
       elif [[ "${id}" =~ [A-D|I]$ ]]; then
         # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
         # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
-        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png"
+        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
       
       # none of those conditions
       else
         # don't need to do anything special here so get the ID layers as they're published
-        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png"
+        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
       fi
       # geez
       
@@ -436,7 +437,7 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/legend" || exit 2
       cd "${wd}/images/radar/legend" || exit 2
       # get the radar images
-      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png"
+      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
     ;;
   esac
 }
@@ -591,8 +592,11 @@ handle_reset_cleanup() {
 }
 
 handle_update() {
-  # fetch latest code
-  git pull --force || exit 1
+  # fetch latest code from remote
+  if ! git pull --force; then
+    printf '%s\n' "Updating ${0} failed."
+    exit 4
+  fi
 }
 
 
