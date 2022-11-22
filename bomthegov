@@ -10,7 +10,8 @@
   # exit_3='failure related to user input'
 
 # this script assumes a debian-based system, quietly check this system is supported before doing anything
-if ! command dpkg --version > /dev/null 2>&1; then
+# use -v to do verbose binaries search, -p to use default value(s) for PATH
+if ! command -vp dpkg > /dev/null 2>&1; then
   printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
   printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short)"
   exit 1
@@ -18,10 +19,10 @@ fi
 
 # now check if the following dependent software packages are ready to go
 # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
-dependencies=('gawk' 'ncftp' 'curl' 'imagemagick' 'ffmpeg')
+dependencies=(git gawk ncftp curl imagemagick ffmpeg)
 for package in "${dependencies[@]}"; do
   # quietly check with package manager if required software is installed
-  dpkg --status "${package}" > /dev/null 2>&1 || { failed+=("${package}"); }
+  dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
 done
 # if $failed array contains something, then report what is missing
 if [[ "${#failed[@]}" -ne 0 ]]; then
@@ -95,6 +96,7 @@ display_help() {
 	  radar       Collect images from a radar.
 	  timelapse   Generate a timelapse video.
 	  reset       Delete all collected image sets and reset.
+	  update      Download and apply latest version of bomthegov.
 	  help        Display this help message.
 
 	For example:
@@ -588,6 +590,11 @@ handle_reset_cleanup() {
   echo "This will delete everything (except rendered timelapses in /timelapse folder)."
 }
 
+handle_update() {
+  # fetch latest code
+  git pull --force || exit 1
+}
+
 
 
 ## runtime
@@ -598,6 +605,7 @@ case $1 in
   'satellite') handle_satellite_images "$@";;
   'timelapse') handle_timelapse_images "$@";;
   'reset') handle_reset_cleanup;;
+  'update') handle_update;;
   'help') display_help;;
   '') display_help;;
   *)
