@@ -9,6 +9,8 @@
   # exit_2='problem working with paths'
   # exit_3='failure related to user input'
   # exit_4='failure fetching remote data or networking error'
+  # exit_5='file lock error'
+  # exit_6='interrupted'
 
 # this script assumes a debian-based system, quietly check this system is supported before doing anything
 # use -v to do verbose binaries search, -p to use default value(s) for PATH
@@ -62,6 +64,8 @@ tmp="$(mktemp --directory --tmpdir="${wd}/.tmp" .session-XXXXXXXXXXXXXXXX)"
 
 # set a trap to ensure garbage collection from now on
 trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
+# also set a trap to ensure we stop if interrupted by user
+trap 'exit 6' SIGINT
 
 # set the temporary storage as the working directory
 cd "${tmp}" || exit 2
@@ -153,6 +157,18 @@ display_timelapse_help() {
 	  help        Display this help message.
 
 	end_cat
+}
+
+display_flock_error() {
+  # $1 should be the exit code argument passed to this function
+  # values we expect are: 4 if ncftpget fails; 5 if flock encounters a conflict with file locking
+  # 5 is set explicitly on the flock line with --conflict-exit-code 5
+  # so if we encounter exit code '5' meaning flock conflict, display an error message, otherwise fail and stop silently
+  if [[ ${1} -eq 5 ]]; then
+    printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
+  fi
+  # now stop with whatever exit code we encountered, i.e. could be 4 if ncftpget failed, or 5 if flock failed
+  exit ${1}
 }
 
 get_satellite_list() {
@@ -330,7 +346,7 @@ handle_satellite_images() {
       # checks passed, so attempt to fetch what looks like a valid satellite ID
       printf '\n%s\n' "Attempting to fetch ${id} satellite images:"
       # ensure we have recent list first
-      get_satellite_list
+      get_satellite_list || exit 4
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
         printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
@@ -345,7 +361,10 @@ handle_satellite_images() {
       
       # download all images that start with ID then wildcard globbing
       # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-      ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*"
+      # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
+      # if we get network problems with ncftpget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
+      # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering paralell fetching, otherwise fail silently
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command 'ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*" || exit 4' || display_flock_error $?
     ;;
   esac
 }
@@ -376,7 +395,7 @@ handle_radar_images() {
       # checks passed, so attempt to fetch what looks like a valid radar ID
       printf '\n%s\n' "Attempting to fetch ${id} radar data:"
       # ensure we have recent list first
-      get_radar_list
+      get_radar_list || exit 4
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
         printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
@@ -388,7 +407,8 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/${id}" || exit 2
       cd "${wd}/images/radar/${id}/" || exit 2
       # get the radar images
-      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png" || exit 4
+      # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command 'ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png" || exit 4' || display_flock_error $?
       
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
