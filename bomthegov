@@ -320,6 +320,14 @@ handle_user_input() {
   esac
 }
 
+handle_question() {
+  # display a question and return zero status if 'y' matched which will continue
+  # $1 is the contents of question passed to this function
+  # i.e. usage: handle_question "Continue?" && dostuff
+  read -r -p "${1} [y/n] " answer
+  [[ ${answer} == 'y' || ${answer} == 'Y' ]] && return 0 || return 1
+}
+
 handle_satellite_images() {
   case $2 in
     'list')
@@ -363,7 +371,7 @@ handle_satellite_images() {
       # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
       # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
       # if we get network problems with ncftpget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
-      # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering paralell fetching, otherwise fail silently
+      # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
       flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command 'ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*" || exit 4' || display_flock_error $?
     ;;
   esac
@@ -606,9 +614,13 @@ handle_timelapse_images() {
 }
 
 handle_reset_cleanup() {
-  # TODO
-  echo "Are you sure?"
-  echo "This will delete everything (except rendered timelapses in /timelapse folder)."
+  printf '\n%s\n' "This will delete everything (except rendered timelapses in /timelapse folder)."
+  if handle_question "Are you sure you want to continue?"; then
+    # yes, wipe out
+    rm --force --recursive "${wd}/images" && printf '%s\n\n' "Cleanup successful."
+  else
+    printf '%s\n\n' "Stopping."
+  fi
 }
 
 handle_update() {
