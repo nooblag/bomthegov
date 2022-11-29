@@ -372,7 +372,7 @@ handle_satellite_images() {
       # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
       # if we get network problems with ncftpget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
       # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command 'ncftpget "ftp://ftp.bom.gov.au/anon/gen/gms/${id}*" || exit 4' || display_flock_error $?
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "ncftpget ftp://ftp.bom.gov.au/anon/gen/gms/${id}* || exit 4" || display_flock_error $?
     ;;
   esac
 }
@@ -416,7 +416,7 @@ handle_radar_images() {
       cd "${wd}/images/radar/${id}/" || exit 2
       # get the radar images
       # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command 'ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png" || exit 4' || display_flock_error $?
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "ncftpget ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
       
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
