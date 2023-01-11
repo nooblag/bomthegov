@@ -168,7 +168,7 @@ display_flock_error() {
     printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
   fi
   # now stop with whatever exit code we encountered, i.e. could be 4 if ncftpget failed, or 5 if flock failed
-  exit ${1}
+  exit "${1}"
 }
 
 get_satellite_list() {
@@ -271,14 +271,14 @@ strict_test_satellite_id() {
   local user_input="${1}"
   # satellite IDs should start with "IDE" and then 5 numbers (8 characters max in total)
   # if we match that format, return 0 for success, else return 3 for "problem with user input" code
-  if [[ "${user_input}" =~ ^IDE[0-9]{5}$ ]]; then id_type='satellite' && return 0; else return 3; fi
+  [[ "${user_input}" =~ ^IDE[0-9]{5}$ ]] && id_type='satellite' && return 0 || return 3
 }
 
 strict_test_radar_id() {
   local user_input="${1}"
   # radar IDs should start with 'IDR' and contain at least 3 alpha/numeric characters, max of 5 (8 characters max in total)
   # expect A B C D or I
-  if [[ "${user_input}" =~ ^IDR[0-9|A-D|I]{3,5}$ ]]; then id_type='radar' && return 0; else return 3; fi
+  [[ "${user_input}" =~ ^IDR[0-9|A-D|I]{3,5}$ ]] && id_type='radar' && return 0 || return 3
 }
 
 handle_user_input() {
