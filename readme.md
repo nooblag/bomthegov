@@ -1,4 +1,4 @@
-**bomthegov** is a tool that can fetch radar or satellite images from the Australien [sic] [Bureau of Meteorology (BOM)](http://www.bom.gov.au/) public archive, and build simple timelapse videos from the collected images.
+**bomthegov** is a tool that can fetch satellite images, or rain or wind radar images, from the Australien [sic] [Bureau of Meteorology (BOM)](http://www.bom.gov.au/) public archive, and build simple timelapse videos from the collected data.
 
 It currently relies on `ncftp` to fetch the images from the public BOM FTP server, and `imagemagick` and `ffmpeg` to make timelapse videos.
 
@@ -33,6 +33,20 @@ cd bomthegov
 bash bomthegov
 ```
 
-will display a help screen to get you started.
+should display a help screen to get you started.
 
-More documentation to come, as things progress. :)
+<br/>
+
+## Examples
+
+List available satellites
+
+```
+bash bomthegov satellite list
+```
+
+Collect 2km resolution infrared/visual true-colour satellite images of Australia in [equirectangular projection](https://en.wikipedia.org/wiki/Equirectangular_projection) from the past 24 hours
+
+```
+bash bomthegov satellite ide00406
+```
