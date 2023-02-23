@@ -383,9 +383,9 @@ handle_satellite_images() {
       
       # download all images that start with ID then wildcard globbing
       # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-      # wrap wget in flock to lock the working directory so we don't get race condition when running this as a cronjob
+      # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
       # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
-      # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+      # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
       flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}* || exit 4" || display_flock_error $?
       printf '\n%s\n\n' 'Completed successfully.'
     ;;
@@ -443,7 +443,7 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/${id}" || exit 2
       cd "${wd}/images/radar/${id}/" || exit 2
       # get the radar images
-      # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
+      # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
       flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
       
       # get the background image layers if need be
@@ -550,9 +550,11 @@ handle_timelapse_images() {
       
       # prepare each image as video frames
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
-        if [[ "${context}" == 'satellite' ]]; then        
-          printf '%s' "Flattening satellite images... "
+        if [[ "${context}" == 'satellite' ]]; then
+          # set up a counter for percentage complete tracking
+          count=1
           for file in "${files[@]}"; do
+            printf '%s %d%s ' "Flattening satellite images..." $(( count * 100 / ${#files[@]} )) '%'
             # get the name of the current file only by stripping off its path
             current_filename="${file##*/}"
             # tif files from bom have multiple layers and if just using filenames imagemagick splits those layers into multiple files which is unwanted
@@ -561,6 +563,10 @@ handle_timelapse_images() {
             # also do this quietly to avoid warning messages about tif layers that we might encounter
             # make sure to capture convert's exit status for success checking later
             convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result=$?
+            # advance the count
+            ((count++))
+            # return cursor to the start of the line
+            printf '\r'
           done
           
         # if we're making a timelapse of a radar, assemble its layers
@@ -574,22 +580,30 @@ handle_timelapse_images() {
             # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
             [[ "${id}" =~ I$ ]] && legend="${wd}/images/radar/legend/IDR.legend.2.png"
 
-          printf '%s' "Preparing radar image layers... "
           # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
           # otherwise, it's a radar as "usual" so assemble those layers
           # such a messy bom
           if [[ "${id}" == 'IDR00004' ]]; then
             # the conversion loop should exclude layers that don't exist for national radar
             # make sure to capture convert's exit status for success checking later
+            # set up a counter for percentage complete tracking
+            count=1
             for file in "${files[@]}"; do
+              printf '%s %d%s ' "Preparing radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
                 "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
+              # advance the count
+              ((count++))
+              # return cursor to the start of the line
+              printf '\r'
             done
           else
             # a radar as usual, so conversion loop should assemble known/desired layers
+            count=1
             for file in "${files[@]}"; do
+              printf '%s %d%s ' "Preparing radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
@@ -597,6 +611,10 @@ handle_timelapse_images() {
                 "layers/*.locations.png" \
                 "layers/*.range.png" \
                 "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
+              # advance the count
+              ((count++))
+              # return cursor to the start of the line
+              printf '\r'
             done
           fi
         fi
@@ -615,6 +633,8 @@ handle_timelapse_images() {
 
       # now make mp4 video timelapse!
       printf '\n%s\n' "Making MP4... "
+      # wait a short moment first for disk caching
+      sleep 1
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
           # make sure to capture ffmpeg's exit status for success checking later
