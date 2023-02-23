@@ -2,7 +2,6 @@
 
 # jore - fetch radar and satellite images from bom the gov and build stop-animations from collected data
 
-
 ## set up environment
 # references for mapping exit codes
   # exit_1='software or file dependency fail'
@@ -22,7 +21,7 @@ fi
 
 # now check if the following dependent software packages are ready to go
 # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
-dependencies=(git gawk ncftp curl imagemagick ffmpeg)
+dependencies=(git gawk wget curl imagemagick ffmpeg)
 for package in "${dependencies[@]}"; do
   # quietly check with package manager if required software is installed
   dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
@@ -161,29 +160,31 @@ display_timelapse_help() {
 
 display_flock_error() {
   # $1 should be the exit code argument passed to this function
-  # values we expect are: 4 if ncftpget fails; 5 if flock encounters a conflict with file locking
-  # 5 is set explicitly on the flock line with --conflict-exit-code 5
-  # so if we encounter exit code '5' meaning flock conflict, display an error message, otherwise fail and stop silently
+  # values we expect are: 4 if `wget` fails; 5 if `flock` encounters a conflict with file locking
+  # 4 is set explicitly with the `wget` line inside `flock`
+  # 5 is set explicitly on the `flock` line with --conflict-exit-code 5
+  # so if we encounter exit code '5' meaning `flock` conflict, display an error message, otherwise fail and stop silently
   if [[ ${1} -eq 5 ]]; then
     printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
   fi
-  # now stop with whatever exit code we encountered, i.e. could be 4 if ncftpget failed, or 5 if flock failed
+  # now stop with whatever exit code we encountered
   exit "${1}"
 }
 
 get_satellite_list() {
   # dump entire satellite directory
-  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/gms/' > gms.list || exit 4
-  # pattern match the list for IDs with expected image files only, to ignore any html, shtml, json, or tmp files that will generate false positives
-  # then extract the IDs (1st field) and unique sort to remove duplicates
-  # match IDs that have tif or jpg images only
-  gawk --field-separator='.' '/^.*\.tif$|\.jpg$/ {print $1}' gms.list | sort --unique > satellite-IDs.list
+  # use 'spidering' to not download anything and just get .listing file of ftp directory
+  # also set lots of tries to handle when bom is busy and ftp seems to timeout a lot
+  wget --quiet --spider --no-remove-listing --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/ || return 4
+  # pattern match the list to return only satellite IDs (IDE), and only match IDs that contain TIF or JPG files
+  # then "sub(regexp, replacement, target)" to strip the rest of the line away (by replacing it with nothing), to "print only the ID part"
+  gawk '/IDE.*\.tif|\.jpg/ { sub("\\..*", "", $NF); print $NF }' .listing | sort --unique > satellite-IDs.list
 }
 
 get_radar_list() {
-  ncftpls 'ftp://ftp.bom.gov.au/anon/gen/radar/' > radar.list || exit 4
-  # match IDs that have png files only
-  gawk --field-separator='.' '/^.*\.png$/ {print $1}' radar.list | sort --unique > radar-IDs.list
+  wget --quiet --spider --no-remove-listing --timeout=30 --tries=30 --random-wait 'ftp://ftp.bom.gov.au/anon/gen/radar/' || return 4
+  # pattern match radar IDs, only matching IDs that contain PNG files
+  gawk '/IDR.*\.png/ { sub("\\..*", "", $NF); print $NF }' .listing | sort --unique > radar-IDs.list
 }
 
 get_timelapse_list() {
@@ -331,9 +332,15 @@ handle_question() {
 handle_satellite_images() {
   case $2 in
     'list')
-      # fetch a list of available satellite IDs
       printf '%s' "Fetching satellite list... "
-      get_satellite_list && printf '\n\n'
+      # fetch a list of available satellite IDs
+      if get_satellite_list; then
+        # getting list was a success, so pop in some pretty empty space
+        printf '\n\n'
+      else
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
       # ensure security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
@@ -352,14 +359,21 @@ handle_satellite_images() {
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
       # checks passed, so attempt to fetch what looks like a valid satellite ID
-      printf '\n%s\n' "Attempting to fetch ${id} satellite images:"
+      printf '\n%s' "Attempting to fetch ${id} satellite images: "
       # ensure we have recent list first
-      get_satellite_list || exit 4
+      if ! get_satellite_list; then
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
+        printf '%s\n' 'failed.'
         printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
         printf '%s\n\n' "Try 'bash $0 satellite list' to display a list of available IDs."
         exit 3
+      else
+        # got the list and the ID exists, everything fine, add some pretty empty space
+        printf '\n\n'
       fi
       
       # finished user input tests, so we have something to work with
@@ -369,10 +383,11 @@ handle_satellite_images() {
       
       # download all images that start with ID then wildcard globbing
       # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-      # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
-      # if we get network problems with ncftpget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
+      # wrap wget in flock to lock the working directory so we don't get race condition when running this as a cronjob
+      # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
       # pass the flock exit code to display_flock_error in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "ncftpget ftp://ftp.bom.gov.au/anon/gen/gms/${id}* || exit 4" || display_flock_error $?
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}* || exit 4" || display_flock_error $?
+      printf '\n%s\n\n' 'Completed successfully.'
     ;;
   esac
 }
@@ -380,9 +395,15 @@ handle_satellite_images() {
 handle_radar_images() {
   case $2 in
     'list')
-      # fetch a list of available radar IDs
       printf '%s' "Fetching radar list... "
-      get_radar_list && printf '\n\n'
+      # fetch a list of available radar IDs
+      if get_radar_list; then
+        # getting list was a success, so pop in some pretty empty space
+        printf '\n\n'
+      else
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
       # ensure the security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
@@ -401,14 +422,21 @@ handle_radar_images() {
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
       # checks passed, so attempt to fetch what looks like a valid radar ID
-      printf '\n%s\n' "Attempting to fetch ${id} radar data:"
+      printf '\n%s' "Attempting to fetch ${id} radar data: "
       # ensure we have recent list first
-      get_radar_list || exit 4
+      if ! get_radar_list; then
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
       # is the ID on the list?
       if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
+        printf 'failed.\n'
         printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
         printf '%s\n\n' "Try 'bash $0 radar list' to display a list of available IDs."
         exit 3
+      else
+        # everything fine, so pop in some pretty empty space
+        printf '\n\n'
       fi
       
       # looking good, ensure storage is available
@@ -416,7 +444,7 @@ handle_radar_images() {
       cd "${wd}/images/radar/${id}/" || exit 2
       # get the radar images
       # wrap ncftpget in flock to lock the working directory so we don't get race condition when running this as a cronjob
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "ncftpget ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
       
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
@@ -451,12 +479,12 @@ handle_radar_images() {
       elif [[ "${id}" =~ [A-D|I]$ ]]; then
         # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
         # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
-        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
+        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
       
       # none of those conditions
       else
         # don't need to do anything special here so get the ID layers as they're published
-        ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
+        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
       fi
       # geez
       
@@ -465,7 +493,10 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/legend" || exit 2
       cd "${wd}/images/radar/legend" || exit 2
       # get the radar images
-      ncftpget "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
+      wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
+
+      # everything has gone well if we got this far
+      printf '\n%s\n\n' 'Completed successfully.'
     ;;
   esac
 }
