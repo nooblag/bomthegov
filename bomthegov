@@ -563,12 +563,20 @@ handle_timelapse_images() {
             # also do this quietly to avoid warning messages about tif layers that we might encounter
             # make sure to capture convert's exit status for success checking later
             convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result=$?
+              # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
+              # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add timestamps
+              # use the served file metadata parsed through `date` to mark as a timestamp
+              if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
+                convert "${scratch}/${current_filename%.*}.jpg" \
+                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --reference ${current_filename})" \
+                  -gravity center -append "${scratch}/${current_filename%.*}.jpg"
+              fi
             # advance the count
             ((count++))
             # return cursor to the start of the line
             printf '\r'
           done
-          
+
         # if we're making a timelapse of a radar, assemble its layers
         elif [[ "${context}" == 'radar' ]]; then
           # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
@@ -638,6 +646,7 @@ handle_timelapse_images() {
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
           # make sure to capture ffmpeg's exit status for success checking later
+          # -vf to add padding to avoid potential "height not divisible by 2" crashes
           ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffpmeg_result=$?
 
         # if we're making a timelapse of a radar, we use the assembled png files
