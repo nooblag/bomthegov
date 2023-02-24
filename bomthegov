@@ -78,7 +78,7 @@ less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
 
 # basic about info
 display_about() {
-  printf '\n%s - %s\n\n' 'bomthegov' 'Version 0.0.1a'
+  printf '\n%s - %s - %s\n\n' 'bomthegov' 'Version 0.0.1a' 'by @nooblag'
   cat <<-end_cat
 	A tool to fetch radar or satellite images at set intervals from
 	the Australien [sic] Bureau of Meteorology (BOM) public archive,
@@ -96,12 +96,12 @@ display_help() {
 	Usage: bash $0 <option>
 
 	Available options:
-	  satellite   Collect images from a satellite.
-	  radar       Collect images from a radar.
-	  timelapse   Generate a timelapse video.
-	  reset       Delete all collected image sets and reset.
-	  update      Download and apply latest version of bomthegov.
-	  help        Display this help message.
+	  satellite     Collect images from a satellite.
+	  radar         Collect images from a radar.
+	  timelapse     Generate a timelapse video.
+	  reset         Delete all collected image sets, and archives.
+	  update        Download and apply latest version of bomthegov.
+	  help          Display this help message.
 
 	For example:
 	  'bash $0 satellite'
@@ -116,9 +116,28 @@ display_satellite_help() {
 	Usage: bash $0 satellite <option>
 
 	Available options:
-	  list        Fetch a list of available satellite IDs.
-	  <id>        Start collecting images of <id> satellite.
-	  help        Display this help message.
+	  list          Fetch a list of available satellite IDs.
+	  <id>          Start collecting images of <id> satellite.
+
+	  <id> <HH:MM>  Collect a specific 24hr time from <id> satellite images. Time is UTC.
+
+	                Time format is HH:MM. So for example, a value of '02:30' will collect
+	                any images from 2:30am only.
+
+	                Single character globbing (a question mark) can be used to wildcard minutes.
+	                So for example, '09:2?' will extract images from any minute inside twenty
+	                past nine; while '20:?4' will extract any image inside any ten minute range
+	                ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
+	                Double question marks can also be used to extract for the whole hour.
+	                So for example, '16:??' will match all images available inside 4pm.
+
+	                *** Please note *** the "delete time" (DelT) for some satellite images is
+	                less than 24hrs, so this setting is mostly only useful when bomthegov
+	                is running as an automated job (for example, a cronjob), as a glob pattern
+	                outside DelT will not return any matches, and hence capture no images. You
+	                can run the 'list' option from above to get data on each satellite's DelT.
+
+	  help          Display this help message.
 
 	For example:
 	  'bash $0 satellite IDE00435'
@@ -133,9 +152,28 @@ display_radar_help() {
 	Usage: bash $0 radar <option>
 
 	Available options:
-	  list        Fetch a list of available radar IDs.
-	  <id>        Start collecting images of <id> radar.
-	  help        Display this help message.
+	  list          Fetch a list of available radar IDs.
+	  <id>          Start collecting images of <id> radar.
+
+	  <id> <HH:MM>  Collect a specific 24hr time from <id> radar images. Time is UTC.
+
+	                Time format is HH:MM. So for example, a value of '02:30' will collect
+	                any images from 2:30am only.
+
+	                Single character globbing (a question mark) can be used to wildcard minutes.
+	                So for example, '09:2?' will extract images from any minute inside twenty
+	                past nine; while '20:?4' will extract any image inside any ten minute range
+	                ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
+	                Double question marks can also be used to extract for the whole hour.
+	                So for example, '16:??' will match all images available inside 4pm.
+
+	                *** Please note *** the "delete time" (DelT) for some radar images is less
+	                than 2hrs, so this setting is mostly only useful when bomthegov is running
+	                as an automated job (for example, a cronjob), as a glob pattern outside of
+	                DelT will not return any matches, and hence capture no images. You can run
+	                the 'list' option from above to get data on each radar's DelT.
+
+	  help          Display this help message.
 
 	For example:
 	  'bash $0 radar IDR421'
@@ -150,10 +188,10 @@ display_timelapse_help() {
 	Usage: bash $0 timelapse <option>
 
 	Available options:
-	  list        Display a list of collected image sets.
-	  <id>        Make a timelapse video for a specific radar
-	              or satellite ID.
-	  help        Display this help message.
+	  list          Display a list of collected image sets.
+	  <id>          Make a timelapse video for a specific radar
+	                 or satellite ID.
+	  help          Display this help message.
 
 	end_cat
 }
@@ -381,12 +419,20 @@ handle_satellite_images() {
       mkdir --parents "${wd}/images/satellite/${id}" || exit 2
       cd "${wd}/images/satellite/${id}/" || exit 2
       
-      # download all images that start with ID then wildcard globbing
-      # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-      # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
-      # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
-      # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}* || exit 4" || display_flock_error $?
+      # if we have a HH:MM argument ${3}, narrow the `wget` glob to that
+      if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+        # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
+        # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
+        # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+        # remove colon from timestamp using '//' parameter expansion
+        printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}.2???????${3//:}* || exit 4" || display_flock_error $?
+      else
+        # download all images that start with ID then wildcard globbing
+        # filename pattern om bom server is ID.YYYYMMDDHHMM, so match ID.2* (to exlcude ID.radar files for IDE00135)
+        # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}.2* || exit 4" || display_flock_error $?
+      fi
       printf '\n%s\n\n' 'Completed successfully.'
     ;;
   esac
@@ -442,9 +488,22 @@ handle_radar_images() {
       # looking good, ensure storage is available
       mkdir --parents "${wd}/images/radar/${id}" || exit 2
       cd "${wd}/images/radar/${id}/" || exit 2
+      
       # get the radar images
       # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
-      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
+      # if we have a HH:MM argument ${3}, narrow the `wget` glob to that
+      if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+        # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
+        # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+        # remove colon from timestamp using '//' parameter expansion
+        printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.????????${3//:}*.png || exit 4" || display_flock_error $?
+      else
+        # download all images that start with ID then wildcard globbing
+        # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
+      fi
+
       
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
@@ -568,7 +627,7 @@ handle_timelapse_images() {
               # use the served file metadata parsed through `date` to mark as a timestamp
               if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
                 convert "${scratch}/${current_filename%.*}.jpg" \
-                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --reference ${current_filename})" \
+                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --reference "${current_filename}")" \
                   -gravity center -append "${scratch}/${current_filename%.*}.jpg"
               fi
             # advance the count
@@ -674,7 +733,7 @@ handle_timelapse_images() {
 }
 
 handle_reset_cleanup() {
-  printf '\n%s\n' "This will delete everything (except rendered timelapses in /timelapse folder)."
+  printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder)."
   if handle_question "Are you sure you want to continue?"; then
     # yes, wipe out
     rm --force --recursive "${wd}/images" && printf '%s\n\n' "Cleanup successful."
