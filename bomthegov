@@ -424,14 +424,19 @@ handle_satellite_images() {
         # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
         # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
         # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+        # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
         # remove colon from timestamp using '//' parameter expansion
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}.2???????${3//:}* || exit 4" || display_flock_error $?
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
       else
         # download all images that start with ID then wildcard globbing
         # filename pattern om bom server is ID.YYYYMMDDHHMM, so match ID.2* (to exlcude ID.radar files for IDE00135)
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/${id}.2* || exit 4" || display_flock_error $?
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
       fi
       printf '\n%s\n\n' 'Completed successfully.'
     ;;
@@ -495,13 +500,18 @@ handle_radar_images() {
       if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
         # if we get network problems with wget, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter race condition, exit 5 (i.e. display_flock_error)
         # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+        # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
         # remove colon from timestamp using '//' parameter expansion
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.????????${3//:}*.png || exit 4" || display_flock_error $?
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
+          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
       else
         # download all images that start with ID then wildcard globbing
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command "wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/radar/${id}*.png || exit 4" || display_flock_error $?
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
+        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+        ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
       fi
 
       
