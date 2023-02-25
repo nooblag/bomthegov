@@ -620,8 +620,18 @@ handle_timelapse_images() {
       # prepare each image as video frames
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
-          # set up a counter for percentage complete tracking
+          # *** `imagemagick` defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
+          # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
+          # default megapixel limit for `imagemagick` is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
+          # import bundled settings from .config folder, to explicitly increase defaults inside bomthegov spwaned instances only
+          # documentation at: https://imagemagick.org/script/resources.php
+          # specify the path where `imagemagick` should look for policy.xml
+          export MAGICK_CONFIGURE_PATH="${wd}/.config/ImageMagick/"
+
+          # set up a counter for 'percentage complete' tracking
           count=1
+
+          # now actually do the conversion
           for file in "${files[@]}"; do
             printf '%s %d%s ' "Flattening satellite images..." $(( count * 100 / ${#files[@]} )) '%'
             # get the name of the current file only by stripping off its path
