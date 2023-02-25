@@ -122,20 +122,20 @@ display_satellite_help() {
 	  <id> <HH:MM>  Collect a specific 24hr time from <id> satellite images. Time is UTC.
 
 	                Time format is HH:MM. So for example, a value of '02:30' will collect
-	                any images from 2:30am only.
+	                 any images from 2:30am only.
 
 	                Single character globbing (a question mark) can be used to wildcard minutes.
-	                So for example, '09:2?' will extract images from any minute inside twenty
-	                past nine; while '20:?4' will extract any image inside any ten minute range
-	                ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
-	                Double question marks can also be used to extract for the whole hour.
-	                So for example, '16:??' will match all images available inside 4pm.
+	                 For example, '09:2?' will extract images from any minute inside twenty
+	                 past nine; while '20:?4' will extract any image inside any ten minute range
+	                 ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
+	                Double question marks can also be used to extract for the whole hour. So for
+	                 example, '16:??' will match all images available inside 4pm.
 
 	                *** Please note *** the "delete time" (DelT) for some satellite images is
-	                less than 24hrs, so this setting is mostly only useful when bomthegov
-	                is running as an automated job (for example, a cronjob), as a glob pattern
-	                outside DelT will not return any matches, and hence capture no images. You
-	                can run the 'list' option from above to get data on each satellite's DelT.
+	                 less than 24hrs, so this setting is mostly only useful when bomthegov
+	                 is running as an automated job (for example, a cronjob), as a glob pattern
+	                 outside DelT will not return any matches, and hence capture no images. You
+	                 can run the 'list' option from above to get data on each satellite's DelT.
 
 	  help          Display this help message.
 
@@ -158,20 +158,20 @@ display_radar_help() {
 	  <id> <HH:MM>  Collect a specific 24hr time from <id> radar images. Time is UTC.
 
 	                Time format is HH:MM. So for example, a value of '02:30' will collect
-	                any images from 2:30am only.
+	                 any images from 2:30am only.
 
 	                Single character globbing (a question mark) can be used to wildcard minutes.
-	                So for example, '09:2?' will extract images from any minute inside twenty
-	                past nine; while '20:?4' will extract any image inside any ten minute range
-	                ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
-	                Double question marks can also be used to extract for the whole hour.
-	                So for example, '16:??' will match all images available inside 4pm.
+	                 For example, '09:2?' will extract images from any minute inside twenty
+	                 past nine; while '20:?4' will extract any image inside any ten minute range
+	                 ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
+	                Double question marks can also be used to extract for the whole hour. So for
+	                 example, '16:??' will match all images available inside 4pm.
 
 	                *** Please note *** the "delete time" (DelT) for some radar images is less
-	                than 2hrs, so this setting is mostly only useful when bomthegov is running
-	                as an automated job (for example, a cronjob), as a glob pattern outside of
-	                DelT will not return any matches, and hence capture no images. You can run
-	                the 'list' option from above to get data on each radar's DelT.
+	                 than 2hrs, so this setting is mostly only useful when bomthegov is running
+	                 as an automated job (for example, a cronjob), as a glob pattern outside of
+	                 DelT will not return any matches, and hence capture no images. You can run
+	                 the 'list' option from above to get data on each radar's DelT.
 
 	  help          Display this help message.
 
