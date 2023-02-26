@@ -616,21 +616,23 @@ handle_timelapse_images() {
       
       # ensure we have a scratch storage ready for current conversion to be temporarily saved into
       scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
+      # set up a counter for 'percentage complete' tracking in next steps
+      count=1
+      # set up arrays to capture exit codes from `convert` and `ffmpeg` during each iteration, as we'll test these later to check if any errors are encountered
+      convert_result=()
+      ffmpeg_result=()
       
       # prepare each image as video frames
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
-          # *** `imagemagick` defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
+          # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
           # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
-          # default megapixel limit for `imagemagick` is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
-          # import bundled settings from .config folder, to explicitly increase defaults inside bomthegov spwaned instances only
+          # default megapixel limit for imagemagick is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
+          # import bundled settings to from .config folder to explicitly increase width and height limits, etc, for bomthegov spwaned instances only
           # documentation at: https://imagemagick.org/script/resources.php
-          # specify the path where `imagemagick` should look for policy.xml
-          export MAGICK_CONFIGURE_PATH="${wd}/.config/ImageMagick/"
-
-          # set up a counter for 'percentage complete' tracking
-          count=1
-
+            # specify the path where imagemagick should look for policy.xml
+            export MAGICK_CONFIGURE_PATH="${wd}/.config/ImageMagick/"
+        
           # now actually do the conversion
           for file in "${files[@]}"; do
             printf '%s %d%s ' "Flattening satellite images..." $(( count * 100 / ${#files[@]} )) '%'
@@ -640,15 +642,15 @@ handle_timelapse_images() {
             # so use [0] after file name which `convert` interprets as "get the first layer only"
             # ensure we are converting to jpegs by removing current filename's extension and popping in .jpg
             # also do this quietly to avoid warning messages about tif layers that we might encounter
-            # make sure to capture convert's exit status for success checking later
-            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result=$?
+            # capture the exit code of `convert` into the prepared array for success checking later
+            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
               # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
               # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add timestamps
               # use the served file metadata parsed through `date` to mark as a timestamp
               if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
                 convert "${scratch}/${current_filename%.*}.jpg" \
-                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --reference "${current_filename}")" \
-                  -gravity center -append "${scratch}/${current_filename%.*}.jpg"
+                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --utc --reference "${current_filename}")" \
+                  -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
               fi
             # advance the count
             ((count++))
@@ -672,15 +674,12 @@ handle_timelapse_images() {
           # such a messy bom
           if [[ "${id}" == 'IDR00004' ]]; then
             # the conversion loop should exclude layers that don't exist for national radar
-            # make sure to capture convert's exit status for success checking later
-            # set up a counter for percentage complete tracking
-            count=1
             for file in "${files[@]}"; do
-              printf '%s %d%s ' "Preparing radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
+              printf '%s %d%s ' "Flattening radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
-                "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
+                "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
               # advance the count
               ((count++))
               # return cursor to the start of the line
@@ -688,16 +687,15 @@ handle_timelapse_images() {
             done
           else
             # a radar as usual, so conversion loop should assemble known/desired layers
-            count=1
             for file in "${files[@]}"; do
-              printf '%s %d%s ' "Preparing radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
+              printf '%s %d%s ' "Flattening radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
                 "layers/*.topography.png" \
                 "layers/*.locations.png" \
                 "layers/*.range.png" \
-                "$file" -flatten "${scratch}/${file##*/}"; convert_result=$?
+                "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
               # advance the count
               ((count++))
               # return cursor to the start of the line
@@ -705,8 +703,18 @@ handle_timelapse_images() {
             done
           fi
         fi
-        
-      # now get the first and last names of files we're timelapsing, for use in a moment to generate label for MP4 file
+      
+      # if conversion encountered any errors, stop here
+        # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
+        # https://www.shellcheck.net/wiki/SC2199
+        # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
+        # so, only need to check for the existence of '1' anywhere
+        if [[ "${convert_result[*]}" =~ 1 ]]; then
+          printf '\n\n%s\n%s\n\n' "Error(s) occurred during image preparation." "Creating timelapse failed. Stopping."
+          exit 1
+        fi
+
+      # everything fine, so now get the first and last names of files we're timelapsing, for use in a moment to generate label for MP4 file
       first_file="${files[0]##*/}"
       last_file="${files[${#files[@]}-1]##*/}" # looks messy because to get last array item, we need total number of keys minus one
       # determine each file's creation date and time to discern timeframe of capture
@@ -724,26 +732,34 @@ handle_timelapse_images() {
       sleep 1
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
-          # make sure to capture ffmpeg's exit status for success checking later
+          # capture the exit code of `ffmpeg` into the prepared array for success checking later
           # -vf to add padding to avoid potential "height not divisible by 2" crashes
-          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffpmeg_result=$?
+          # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
+          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
 
         # if we're making a timelapse of a radar, we use the assembled png files
         elif [[ "${context}" == 'radar' ]]; then
           # -r 10 means essentially 10fps; 1 frame for radar image per ~5 minutes; so @10fps, 1 second of footage = ~1hr of radar data timelapsed
           # -vf to add padding to avoid potential "height not divisible by 2" crashes
           # generate timestamp based on first and last collected frames
-          # `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason
-          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffpmeg_result=$?
+          # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
+          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
         fi
-      
-      # after a successful timelapse is made, move the stored images folder to archive and clean up the remaining folder once that's done
-      # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
-      if [[ ${convert_result} -eq 0 && ${ffpmeg_result} -eq 0 ]]; then
-        printf '\n%s\n\n' "Creating ${id} timelapse completed successfully."
+
+      # test if all `ffmpeg` iterations were successful
+        # use a subshell and set bash's Internal Field Separator to wordsplit the exit codes in ffmpeg_result with a plus sign instead of whitespace
+        # then, parse the expanded array into `bc` with here-string, so the expanded array becomes 'var1+var2+var3' and so on, that `bc` can then sum ;)
+        ffmpeg_success="$(IFS='+'; bc <<< "${ffmpeg_result[*]}")"
+      if [[ "${ffmpeg_success}" -eq 0 ]]; then
+        # after a successful timelapse is made, move the stored images folder to .archive and clean up the remaining folder once that's done
+        # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
+        printf '\n%s\n\n' "Timelapse video for ${id} ${context} successfully created."
         mkdir --parents "${wd}/images/.archive/${context}/${id}" || exit 2
         cd "${wd}" || exit 2
         mv --force "${wd}/images/${context}/${id}/"*.* "${wd}/images/.archive/${context}/${id}/" && rm --force --recursive "${wd}/images/${context}/${id}"
+      else
+        printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
+        exit 1
       fi
       
       # open the timelapse video file in the user's preferred application
