@@ -2,6 +2,8 @@
 .tmp
 
 # don't synchronise image storage or timelapses
-# **these folders are also large in size!**
 images
 timelapse
+
+# ignore debugging log
+.data/xtrace.log
