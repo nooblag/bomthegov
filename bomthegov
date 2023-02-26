@@ -11,6 +11,42 @@
   # exit_5='file lock error'
   # exit_6='interrupted'
 
+# determine and set up relative paths
+fullpath_and_name="$(readlink --canonicalize "${0}")"
+wd="$(dirname "${fullpath_and_name}")"
+# name of this file only: ${0##*/}
+# relative path and name: ${0}
+# full path and name: ${fullpath_and_name}
+# full path to this file only: ${wd}
+
+# setup debug logging
+logfile="${wd}/.data/xtrace.log"
+  # if the debug config setting file exists, switch on logging
+  if [[ -e "${wd}/.config/debug" ]]; then
+    # if the logfile exists and is larger than 5 megabytes, quietly rotate it
+    find "${logfile}" -size +5M -exec rm --force "${logfile}" \; > /dev/null 2>&1
+    # otherwise, size is fine or the file doesn't exist yet, so handle pretty headings
+    if [[ -s "${logfile}" ]]; then
+      # log file already exists
+      # bump with some whitespace before logging this session
+      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${0}" "$(date)" "${SHELL} ${0} ${*}" >> "${logfile}"
+    else
+      # log doesn't exist, create it with the same heading as above but without the padding
+      printf '%s %s --- %s ---\n\n' "--- ${0} ---" "$(date)" "${SHELL} ${0} ${*}" > "${logfile}"
+    fi
+    # STDIN, STDOUT, and STDERR are 0, 1, and 2, respectively
+    # this means descriptors 3 through 9 are likely available
+    # set the last descriptor, 9, to write to log file then, with `exec`
+    exec 9>>"${logfile}"
+    # tell bash to write its 'xtrace' output to file descriptor '9'
+    BASH_XTRACEFD=9
+    # rewrite $P4 to modify the 'prompt' to echo the 'line number' of this script that is executing at run time
+    PS4='$LINENO: '
+    # finally, turn on bash 'debug' which kicks in BASH_XTRACEFD to then write to log with the amended prompt
+    # and makes '9' fire for any output, which gets written to log
+    set -o xtrace
+  fi
+
 # this script assumes a debian-based system, quietly check this system is supported before doing anything
 # use -v to do verbose binaries search, -p to use default value(s) for PATH
 if ! command -vp dpkg > /dev/null 2>&1; then
@@ -40,14 +76,6 @@ if [[ "${#failed[@]}" -ne 0 ]]; then
   # stop here and exit with error code 1
   exit 1
 fi
-
-# determine and set up relative paths
-fullpath_and_name="$(readlink --canonicalize "${0}")"
-wd="$(dirname "${fullpath_and_name}")"
-# name of this file only: ${0##*/}
-# relative path and name: ${0}
-# full path and name: ${fullpath_and_name}
-# full path to this file only: ${wd}
 
 # ensure bundled data files exist and are not empty
 if ! [[ -s "${wd}/.data/desc.csv" ]]; then
@@ -101,6 +129,7 @@ display_help() {
 	  timelapse     Generate a timelapse video.
 	  reset         Delete all collected image sets, and archives.
 	  update        Download and apply latest version of bomthegov.
+	  debug         Turn code debug logging on/off.
 	  help          Display this help message.
 
 	For example:
@@ -189,9 +218,20 @@ display_timelapse_help() {
 
 	Available options:
 	  list          Display a list of collected image sets.
-	  <id>          Make a timelapse video for a specific radar
-	                 or satellite ID.
+	  <id>          Make a timelapse video for a specific radar or satellite ID.
 	  help          Display this help message.
+
+	end_cat
+}
+
+display_debug_help() {
+  cat <<-end_cat
+
+	Usage: bash $0 debug <option>
+
+	Available options:
+	  on            Turn on code debugging log (default). The log is saved in .data folder.
+	  off           Turn off logging and erase any existing logs.
 
 	end_cat
 }
@@ -772,7 +812,7 @@ handle_reset_cleanup() {
   printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder)."
   if handle_question "Are you sure you want to continue?"; then
     # yes, wipe out
-    rm --force --recursive "${wd}/images" && printf '%s\n\n' "Cleanup successful."
+    rm --force --recursive "${wd}/images" && rm --force "${logfile}" && printf '%s\n\n' "Cleanup successful."
   else
     printf '%s\n\n' "Stopping."
   fi
@@ -792,6 +832,39 @@ handle_update() {
   fi
 }
 
+handle_debugging() {
+  case $2 in
+    'on')
+      # turn on code debugging log
+      # the control is determined by the existence of a file called 'debug' in .config folder
+      if [[ -e "${wd}/.config/debug" ]]; then
+        # setting file already exists, nothing to do
+        printf '%s\n' "Code debugging log setting is already on. :)"
+      else
+        # create the file
+        touch "${wd}/.config/debug"
+        printf '%s\n' "Code debugging log now turned on. Thank you!"
+      fi
+    ;;
+
+    'off')
+      # turn off debuging and erase any existing logs
+      printf '\n%s\n' "This will turn off debug logging and delete any existing logs in .data folder."
+      if handle_question "Are you sure you want to continue?"; then
+        # yes, wipe the logs and turn off debugging
+        rm --force "${wd}/.config/debug" && rm --force "${logfile}" && printf '%s\n\n' "Code debugging log is off, and logs cleared."
+      else
+        printf '%s\n\n' "Stopping."
+      fi
+    ;;
+    
+    ''|'help')
+      # no option given, so display help
+      display_debug_help
+    ;;
+  esac
+}
+
 
 
 ## runtime
@@ -803,6 +876,7 @@ case $1 in
   'timelapse') handle_timelapse_images "$@";;
   'reset') handle_reset_cleanup;;
   'update') handle_update;;
+  'debug') handle_debugging "$@";;
   'help') display_help;;
   '') display_help;;
   *)
