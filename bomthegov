@@ -763,10 +763,14 @@ handle_reset_cleanup() {
 }
 
 handle_update() {
-  # quietly ensure we're at the last remote commit
-  git reset --hard origin > /dev/null 2>&1
-  # now overwrite latest code from remote
-  if ! git pull --rebase --force; then
+  # quietly ensure we're at the last remote commit, to overwrite any local changes
+  git reset --hard origin --quiet
+  # pull latest code from remote
+  if git pull --force; then
+    # quietly rebase to integrate and resync local to the remote branch
+    git rebase --quiet
+  else
+    # problem pulling code
     printf '%s\n' "Updating ${0} failed."
     exit 4
   fi
