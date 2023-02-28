@@ -6,4 +6,5 @@ images
 timelapse
 
 # ignore debugging log
-.data/xtrace.log
+.xtrace.log
+.xtrace.log.1
