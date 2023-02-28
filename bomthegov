@@ -20,30 +20,48 @@ wd="$(dirname "${fullpath_and_name}")"
 # full path to this file only: ${wd}
 
 # setup debug logging
-logfile="${wd}/.data/xtrace.log"
+logfile="${wd}/.xtrace.log"
   # if the debug config setting file exists, switch on logging
   if [[ -e "${wd}/.config/debug" ]]; then
-    # if the logfile exists and is larger than 5 megabytes, quietly rotate it
-    find "${logfile}" -size +5M -exec rm --force "${logfile}" \; > /dev/null 2>&1
-    # otherwise, size is fine or the file doesn't exist yet, so handle pretty headings
+    # if the logfile exists and is larger than 6 megabytes, quietly rotate it
+    find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
+    # now handle log file headings
+    # determine if script is running interactively or as a scheduled job by checking for tty
+    # if yes, then script is interactive, if not, it's likely automated task/cronjob so set that up to note in the log
+    ! [[ -t 0 ]] && tty='no-tty: '
+    # now return the command name that invoked this script using `ps`
+    # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
+    # $$ is the process id of the script that is being run
+    # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
+    # `--format comm=` omits default headers and sets output to return 'command name only'
+    process="$(ps --quick-pid $$ --format comm=)"
+    # print the appropriate heading
+    # format is: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
     if [[ -s "${logfile}" ]]; then
-      # log file already exists
-      # bump with some whitespace before logging this session
-      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${0}" "$(date)" "${SHELL} ${0} ${*}" >> "${logfile}"
+      # log already exists so bump with some whitespace before logging this session
+      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${tty}${process} ${0} ${*}" >> "${logfile}"
     else
-      # log doesn't exist, create it with the same heading as above but without the padding
-      printf '%s %s --- %s ---\n\n' "--- ${0} ---" "$(date)" "${SHELL} ${0} ${*}" > "${logfile}"
+      # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
+      printf '%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${tty}${process} ${0} ${*}" > "${logfile}"
     fi
-    # STDIN, STDOUT, and STDERR are 0, 1, and 2, respectively
-    # this means descriptors 3 through 9 are likely available
-    # set the last descriptor, 9, to write to log file then, with `exec`
-    exec 9>>"${logfile}"
-    # tell bash to write its 'xtrace' output to file descriptor '9'
+    # now actually set up the process to write xtrace and stderr output to a log file for debugging
+    # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
+    # so progress through how we want to handle each:
+      # [stderr]
+      # use `tee` to display stderr on the console as normal, but also write those errors to the logfile
+      # note the format of spaces here: 2> as direction for stderr, *then* the syntax of ">(process substitution as if it were a file)"
+      exec 2> >(tee --append "${logfile}")
+      # [xtrace]
+      # file descriptors 3 through 9 are not set, so use the last fd, 9, to write anything sent there to the log file only
+      # note the *lack of spaces* here to mean fd9 *appends* to file ;)
+      exec 9>>"${logfile}"
+    # now tell bash to write its 'xtrace' output to fd9 which we've opened above
     BASH_XTRACEFD=9
-    # rewrite $P4 to modify the 'prompt' to echo the 'line number' of this script that is executing at run time
-    PS4='$LINENO: '
-    # finally, turn on bash 'debug' which kicks in BASH_XTRACEFD to then write to log with the amended prompt
-    # and makes '9' fire for any output, which gets written to log
+    # rewrite $P4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
+    # note the use of single quotes here because we don't want parameter expansion to happen yet, we want to pass the vars to `exec` to expand at the moment the prompt writes
+    # display format is [HOUR:MIN:SEC.NANOSEC] LINENO: ...
+    PS4=' [$(date +%H:%M:%S.%N)] $LINENO: '
+    # finally, turn on bash 'debug' which makes all of the above ultimately meaningful
     set -o xtrace
   fi
 
@@ -253,7 +271,7 @@ get_satellite_list() {
   # dump entire satellite directory
   # use 'spidering' to not download anything and just get .listing file of ftp directory
   # also set lots of tries to handle when bom is busy and ftp seems to timeout a lot
-  wget --quiet --spider --no-remove-listing --timeout=30 --tries=30 --random-wait ftp://ftp.bom.gov.au/anon/gen/gms/ || return 4
+  wget --quiet --spider --no-remove-listing --timeout=30 --tries=30 --random-wait 'ftp://ftp.bom.gov.au/anon/gen/gms/' || return 4
   # pattern match the list to return only satellite IDs (IDE), and only match IDs that contain TIF or JPG files
   # then "sub(regexp, replacement, target)" to strip the rest of the line away (by replacing it with nothing), to "print only the ID part"
   gawk '/IDE.*\.tif|\.jpg/ { sub("\\..*", "", $NF); print $NF }' .listing | sort --unique > satellite-IDs.list
@@ -466,16 +484,18 @@ handle_satellite_images() {
         # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
         # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
         # remove colon from timestamp using '//' parameter expansion
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
-          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
       else
         # download all images that start with ID then wildcard globbing
         # filename pattern om bom server is ID.YYYYMMDDHHMM, so match ID.2* (to exlcude ID.radar files for IDE00135)
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
-          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
       fi
       printf '\n%s\n\n' 'Completed successfully.'
@@ -542,15 +562,17 @@ handle_radar_images() {
         # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
         # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
         # remove colon from timestamp using '//' parameter expansion
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
-          wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
       else
         # download all images that start with ID then wildcard globbing
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
-        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
         ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
       fi
 
@@ -579,7 +601,6 @@ handle_radar_images() {
         # does this seem disorganised for an agency that runs on data?
         curl \
           --output 'IDR00004.background.png' \
-          --time-cond 'IDR00004.background.png' \
           --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
           --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
           --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
@@ -588,12 +609,14 @@ handle_radar_images() {
       elif [[ "${id}" =~ [A-D|I]$ ]]; then
         # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
         # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
-        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
       
       # none of those conditions
       else
         # don't need to do anything special here so get the ID layers as they're published
-        wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
+        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
       fi
       # geez
       
@@ -602,7 +625,8 @@ handle_radar_images() {
       mkdir --parents "${wd}/images/radar/legend" || exit 2
       cd "${wd}/images/radar/legend" || exit 2
       # get the radar images
-      wget --quiet --show-progress --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
+      # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+      2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
 
       # everything has gone well if we got this far
       printf '\n%s\n\n' 'Completed successfully.'
@@ -885,3 +909,7 @@ case $1 in
     exit 3
   ;;
 esac
+
+# if all runtime paths are traversed without a problem, exit successfully
+# this 'exit' also trips off trap for garbage collection
+exit 0
