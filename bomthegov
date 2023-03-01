@@ -787,7 +787,7 @@ handle_reset_cleanup() {
   printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder)."
   if handle_question "Are you sure you want to continue?"; then
     # yes, wipe out
-    rm --force --recursive "${wd}/images" && rm --force "${logfile}" && printf '%s\n\n' "Cleanup successful."
+    rm --force --recursive "${wd}/images" && printf '%s\n\n' "Cleanup successful."
   else
     printf '%s\n\n' "Stopping."
   fi
@@ -824,7 +824,7 @@ handle_debugging() {
 
     'off')
       # turn off debuging and erase any existing logs
-      printf '\n%s\n' "This will turn off debug logging and delete any existing logs in .data folder."
+      printf '\n%s\n' "This will turn off debug logging and delete existing logs."
       if handle_question "Are you sure you want to continue?"; then
         # yes, wipe the logs and turn off debugging
         rm --force "${wd}/.config/debug" && rm --force "${logfile}" && printf '%s\n\n' "Code debugging log is off, and logs cleared."
