@@ -27,22 +27,27 @@ logfile="${wd}/.xtrace.log"
     find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
     # now handle log file headings
     # determine if script is running interactively or as a scheduled job by checking for tty
-    # if yes, then script is interactive, if not, it's likely automated task/cronjob so set that up to note in the log
-    ! [[ -t 0 ]] && tty='no-tty: '
+    # `tty` coreutil can return exit code only using `--quiet`
+    # if we get something other than zero, fd0/fd1 etc is not open = this is running as an automated job, so prepend var to note that in the log
+    ! tty --quiet && process='no-tty: '
     # now return the command name that invoked this script using `ps`
     # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
     # $$ is the process id of the script that is being run
     # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
     # `--format comm=` omits default headers and sets output to return 'command name only'
-    process="$(ps --quick-pid $$ --format comm=)"
+    process+="$(ps --quick-pid $$ --format comm=) "
+    # append the name and path of here
+    process+="${0}"
+    # if any arguments have been passed here, append them to the line too
+    [[ -n ${*} ]] && process+=" ${*}"
+    # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
     # print the appropriate heading
-    # format is: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
     if [[ -s "${logfile}" ]]; then
       # log already exists so bump with some whitespace before logging this session
-      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${tty}${process} ${0} ${*}" >> "${logfile}"
+      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${process}" >> "${logfile}"
     else
       # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
-      printf '%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${tty}${process} ${0} ${*}" > "${logfile}"
+      printf '%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${process}" > "${logfile}"
     fi
     # now actually set up the process to write xtrace and stderr output to a log file for debugging
     # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
@@ -798,7 +803,7 @@ handle_update() {
   git reset --hard origin --quiet
   # pull latest code from remote
   # redirect `git pull` output to stderr wholesale so the update changes/response gets logged as part of xtrace
-  if 1>&2 git pull --force; then
+  if git pull --force 1>&2; then
     # quietly rebase to integrate and resync local to the remote branch
     git rebase --quiet
   else
