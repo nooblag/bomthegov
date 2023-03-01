@@ -124,7 +124,7 @@ less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
 
 # basic about info
 display_about() {
-  printf '\n%s - %s - %s\n\n' 'bomthegov' 'Version 0.1.0' 'by @nooblag'
+  printf '\n%s - %s - %s\n\n' 'bomthegov' 'Version 0.1.1' 'by @nooblag'
   cat <<-end_cat
 	A tool to fetch radar or satellite images at set intervals from
 	the Australien [sic] Bureau of Meteorology (BOM) public archive,
