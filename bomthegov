@@ -11,6 +11,11 @@
   # exit_5='file lock error'
   # exit_6='interrupted'
 
+# first determine if script is running interactively or as a scheduled job by checking for an interactive tty
+# `tty` coreutil can return exit code only using `--quiet`
+# if we get something other than zero, fd0/fd1 etc is not open = this is running as an automated job
+! tty --quiet && cron=1 && process='no-tty: '
+
 # determine and set up relative paths
 fullpath_and_name="$(readlink --canonicalize "${0}")"
 wd="$(dirname "${fullpath_and_name}")"
@@ -26,11 +31,7 @@ logfile="${wd}/.xtrace.log"
     # if the logfile exists and is larger than 6 megabytes, quietly rotate it
     find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
     # now handle log file headings
-    # determine if script is running interactively or as a scheduled job by checking for an interactive tty
-    # `tty` coreutil can return exit code only using `--quiet`
-    # if we get something other than zero, fd0/fd1 etc is not open = this is running as an automated job, so prepend var to note that in the log
-    ! tty --quiet && process='no-tty: '
-    # now return the command name that invoked this script using `ps`
+    # return the command name that invoked this script using `ps`
     # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
     # $$ is the process id of the script that is being run
     # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
@@ -70,7 +71,7 @@ logfile="${wd}/.xtrace.log"
     set -o xtrace
   fi
 
-# this script assumes a debian-based system, quietly check this system is supported before doing anything
+# this script assumes a debian-based system, so quietly check this system is supported before doing anything further
 # use -v to do verbose binaries search, -p to use default value(s) for PATH
 if ! command -vp dpkg > /dev/null 2>&1; then
   printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
@@ -78,7 +79,7 @@ if ! command -vp dpkg > /dev/null 2>&1; then
   exit 1
 fi
 
-# now check if the following dependent software packages are ready to go
+# check if the following dependent software packages are ready to go
 # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
 dependencies=(git gawk wget curl imagemagick ffmpeg)
 for package in "${dependencies[@]}"; do
@@ -102,7 +103,7 @@ fi
 
 # ensure bundled data files exist and are not empty
 if ! [[ -s "${wd}/.data/desc.csv" ]]; then
-  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall ${0##*/}. See 'readme.md' for instructions."
+  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall bomthegov. See 'readme.md' for instructions."
   exit 1
 fi
 
@@ -381,6 +382,16 @@ handle_question() {
   [[ ${answer} == 'Y' || ${answer} == 'y' ]] && return 0 || return 1
 }
 
+handle_cron_sleep() {
+  # if this instance is running as a cronjob, introduce a large randomised wait of up to 60 seconds
+  # this is inserted before bulk fetches even commence when running as a cronjob, to:
+  # 1) distribute initial server load at remote end at common cron start times (on the hour, for example)
+  # 2) avoid network/disk congestion at local end for similar conditions, and
+  # 3) atomise the initialisation time of multiple concurrent cronjobs at share the same pattern
+  # e.g. if multiple jobs start at every 10 min interval (like for satellites) we won't get as dramatic i/o inrush
+  [[ "${cron}" -eq 1 ]] && sleep "$(shuf --input-range 0-60 --head-count 1)"
+}
+
 handle_satellite_images() {
   case "${2}" in
     'list')
@@ -409,7 +420,10 @@ handle_satellite_images() {
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
-      # checks passed, so attempt to fetch what looks like a valid satellite ID
+      # user input checks passed
+      # introduce a large randomised wait before proceeding if this instance is running as a cron job
+      handle_cron_sleep
+      # now attempt to fetch what looks like a valid satellite ID
       printf '\n%s' "Attempting to fetch ${id} satellite images: "
       # ensure we have recent list first
       if ! get_satellite_list; then
@@ -441,17 +455,32 @@ handle_satellite_images() {
         # remove colon from globbing arg user input by using '//' parameter expansion
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
+        # now actually do the fetching
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
           2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
       else
+        # sleep another random moment if we're running as a cronjob, before doing a bulk fetch
+        handle_cron_sleep
         # download all images that start with ID using wildcard glob and 3x file extension characters
         # filename pattern on bom server is ID.YYYYMMDDHHMM, so match ID.[digits] only (to not match 'ID.radar' files for IDE00135 for instance)
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
-          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-          ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+        # determine first if this is running as a cronjob, because if so, also introduce randomised wait times between each file here for a bulk fetch
+        if [[ "${cron}" -eq 1 ]]; then
+          # running as cron, introduce a randomised 0.5 to ~5.5 second wait between each file
+          # satellite images are quite large, so bulk transfers of whole image sets before each "delete time" at remote end (DelT) are the most resource intensive for bom
+          printf '%s\n\n' "*** Running as a cronjob, so going slow ***"
+          # now do the fetching
+          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+            2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --wait=5 --random-wait --reject=tmp \
+            ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+        else
+          # interactively running, so fetch at a pace that isn't slowed down
+          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+            2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+            ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+        fi
       fi
       printf '\n%s\n\n' 'Completed successfully.'
     ;;
@@ -486,7 +515,10 @@ handle_radar_images() {
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
-      # checks passed, so attempt to fetch what looks like a valid radar ID
+      # user input checks passed
+      # introduce a large randomised wait before proceeding if this instance is running as a cron job
+      handle_cron_sleep
+      # now attempt to fetch what looks like a valid radar ID
       printf '\n%s' "Attempting to fetch ${id} radar data: "
       # ensure we have recent list first
       if ! get_radar_list; then
@@ -527,8 +559,8 @@ handle_radar_images() {
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 2 hours, for example)
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
-        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-        ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
+          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+          ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
       fi
 
       
