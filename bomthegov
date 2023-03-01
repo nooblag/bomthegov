@@ -834,7 +834,8 @@ handle_update() {
   # redirect `git pull` output to stderr wholesale so the update changes/response gets logged as part of xtrace
   if git pull --force 1>&2; then
     # quietly rebase to integrate and resync local to the remote branch
-    git rebase --quiet
+    # use `--force` to ensure all commits are replayed to ovewrite any local changes
+    git rebase --force --quiet
   else
     # problem encountered pulling code
     printf '%s\n' "Updating ${0} failed."
