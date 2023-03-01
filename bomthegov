@@ -115,8 +115,9 @@ tmp="$(mktemp --directory --tmpdir="${wd}/.tmp" .session-XXXXXXXXXXXXXXXX)"
 
 # set a trap to ensure garbage collection from now on
 trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
-# also set a trap to ensure we stop if interrupted by user
-trap 'exit 6' SIGINT
+# set a trap to ensure cursor is reset if interrupted by user and everything stops
+# final errexit will also trip garbage collection EXIT trap above
+trap 'tput cnorm && echo "   " && exit 6' SIGINT
 
 # set the temporary storage as the working directory
 cd "${tmp}" || exit 2
@@ -273,6 +274,33 @@ display_flock_error() {
   exit "${1}"
 }
 
+display_spinner() {
+  # set up a spinner for long-expected processes so the user can visually see the script is still working away
+  # takes the pid of the process passed to the background and captured in $1, and displays a spinner until that process completes
+  # solution derived with thanks to @david_rankin (https://stackoverflow.com/questions/47234947)
+  local proc="${1}"
+  local delay="0.15"
+  # get the cursor out of the way, by hiding it
+  tput civis
+  # do the spinning as long as the process is active
+  while [[ -d /proc/${proc} ]]; do
+    printf '\033[s\033[u[/]\033[u'; sleep "${delay}"
+    printf '\033[s\033[u[—]\033[u'; sleep "${delay}"
+    printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
+    printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
+  done
+  # return to normal by wiping out the spinner's combined character length (3 spaces)
+  printf '\033[s\033[u   \033[u\033[0m'
+  # restore the cursor
+  tput cnorm
+  return 0
+  # to use the spinner, send a command to the background, capture its pid, then set the spinner to run while 'listening' for that task to finish
+  # example, using `sleep 2`
+    # sleep 2 & pid=${!}
+    # display_spinner ${pid}
+    # wait ${pid}
+}
+
 get_satellite_list() {
   # dump entire satellite directory
   # use 'spidering' to not download anything and just get .listing file of ftp directory
@@ -396,7 +424,11 @@ handle_satellite_images() {
   case "${2}" in
     'list')
       printf '%s' "Fetching satellite list... "
-      if get_satellite_list; then
+      # run the function to fetch the list, push it to the background, and display spinner while we wait
+      get_satellite_list & pid=${!}
+      display_spinner ${pid}
+      wait ${pid}; get_list_status=${?}
+      if [[ ${get_list_status} -eq 0 ]]; then
         # getting list was a success, so pop in some pretty empty space
         printf '\n\n'
       else
@@ -426,7 +458,10 @@ handle_satellite_images() {
       # now attempt to fetch what looks like a valid satellite ID
       printf '\n%s' "Attempting to fetch ${id} satellite images: "
       # ensure we have recent list first
-      if ! get_satellite_list; then
+      get_satellite_list & pid=${!}
+      display_spinner ${pid}
+      wait ${pid}; get_list_status=${?}
+      if [[ ${get_list_status} -ne 0 ]]; then
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
@@ -491,7 +526,11 @@ handle_radar_images() {
   case "${2}" in
     'list')
       printf '%s' "Fetching radar list... "
-      if get_radar_list; then
+      # run the function to fetch the list, push it to the background, and display spinner while we wait
+      get_radar_list & pid=${!}
+      display_spinner ${pid}
+      wait ${pid}; get_list_status=${?}
+      if [[ ${get_list_status} -eq 0 ]]; then
         # getting list was a success, so pop in some pretty empty space
         printf '\n\n'
       else
@@ -521,7 +560,10 @@ handle_radar_images() {
       # now attempt to fetch what looks like a valid radar ID
       printf '\n%s' "Attempting to fetch ${id} radar data: "
       # ensure we have recent list first
-      if ! get_radar_list; then
+      get_radar_list & pid=${!}
+      display_spinner ${pid}
+      wait ${pid}; get_list_status=${?}
+      if [[ ${get_list_status} -ne 0 ]]; then
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
@@ -685,7 +727,7 @@ handle_timelapse_images() {
         
           # now actually do the conversion
           for file in "${files[@]}"; do
-            printf '%s %d%s ' "Flattening satellite images..." $(( count * 100 / ${#files[@]} )) '%'
+            printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
             # get the name of the current file only by stripping off its path
             current_filename="${file##*/}"
             # tif files from bom have multiple layers, and if just using filenames, imagemagick splits those layers into multiple files which is unwanted
@@ -726,7 +768,7 @@ handle_timelapse_images() {
           if [[ "${id}" == 'IDR00004' ]]; then
             # the conversion loop should exclude layers that don't exist for national radar
             for file in "${files[@]}"; do
-              printf '%s %d%s ' "Flattening radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
+              printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
               # do conversion quietly
               convert -quiet \
                 "${legend}" \
@@ -740,7 +782,7 @@ handle_timelapse_images() {
           else
             # a radar as usual, so conversion loop should assemble known/desired layers
             for file in "${files[@]}"; do
-              printf '%s %d%s ' "Flattening radar image layers..." $(( count * 100 / ${#files[@]} )) '%'
+              printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
               convert -quiet \
                 "${legend}" \
                 "layers/*.background.png" \
