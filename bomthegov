@@ -133,9 +133,9 @@ less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
 display_about() {
   printf '\n%s - %s - %s\n\n' 'bomthegov' 'Version 0.1.1' 'by @nooblag'
   cat <<-end_cat
-	A tool to fetch radar or satellite images at set intervals from
-	the Australien [sic] Bureau of Meteorology (BOM) public archive,
-	and build simple timelapse videos from collected images.
+	A tool to fetch radar or satellite images at set intervals from the Australien [sic]
+	Bureau of Meteorology (BOM) public archive, and build simple timelapse videos from
+	collected images.
 
 	end_cat
 }
@@ -146,13 +146,14 @@ display_help() {
   display_about
   # then explain how to use this thing, with an example
   cat <<-end_cat
+
 	Usage: bash ${0} <option>
 
 	Available options:
 	  satellite     Collect images from a satellite.
 	  radar         Collect images from a radar.
-	  timelapse     Generate a timelapse video.
-	  reset         Delete all collected image sets, and archives.
+	  timelapse     Generate a timelapse video from collected images.
+	  reset         Delete all collected images, and archives.
 	  update        Download and apply latest version of bomthegov.
 	  debug         Turn code debug logging on/off.
 	  help          Display this help message.
@@ -179,11 +180,11 @@ display_satellite_help() {
 	                 any images from 2:30am only.
 
 	                Single character globbing (a question mark) can be used to wildcard minutes.
-	                 For example, '09:2?' will extract images from any minute inside twenty
+	                 For example, '09:2?' will extract images from *any* minute inside twenty
 	                 past nine; while '20:?4' will extract any image inside any ten minute range
 	                 ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
 	                Double question marks can also be used to extract for the whole hour. So for
-	                 example, '16:??' will match all images available inside 4pm.
+	                 example, '16:??' will match all images available inside 4pm only.
 
 	                *** Please note *** the "delete time" (DelT) for some satellite images is
 	                 less than 24hrs, so this setting is mostly only useful when bomthegov
@@ -299,6 +300,48 @@ display_spinner() {
     # sleep 2 & pid=${!}
     # display_spinner ${pid}
     # wait ${pid}
+}
+
+display_pretty_timer(){
+  # convert provided seconds in $1 to a prettification of days, hours, minutes, seconds
+  # thanks to ideas by @nikolay_sidorov and https://www.shellscript.sh/tips/hms/
+  local parts seconds D H M S D_tag H_tag M_tag S_tag
+  seconds=${1:-0}
+  # all days
+  D=$((seconds / 60 / 60 / 24))
+  # all hours
+  H=$((seconds / 60 / 60))
+  H=$((H % 24))
+  # all minutes
+  M=$((seconds / 60))
+  M=$((M % 60))
+  # all seconds
+  S=$((seconds % 60))
+
+  # set up "x day(s), x hour(s), x minute(s) and x second(s)" language
+  [[ "$D" -eq "1" ]] && D_tag="day" || D_tag="days"
+  [[ "$H" -eq "1" ]] && H_tag="hour" || H_tag="hours"
+  [[ "$M" -eq "1" ]] && M_tag="minute" || M_tag="minutes"
+  [[ "$S" -eq "1" ]] && S_tag="second" || S_tag="seconds"
+
+  # for parts above that exist, parts into an array for sentence formatting
+  parts=()
+  [[ "$D" -gt "0" ]] && parts+=("$D $D_tag")
+  [[ "$H" -gt "0" ]] && parts+=("$H $H_tag")
+  [[ "$M" -gt "0" ]] && parts+=("$M $M_tag")
+  [[ "$S" -gt "0" ]] && parts+=("$S $S_tag")
+
+  # construct the sentence
+  result=''
+  length_of_parts=${#parts[@]}
+  for ((currentpart = 0; currentpart < length_of_parts; currentpart++)); do
+    result+="${parts[$currentpart]}"
+    # if current part is not the last portion of the sentence, append a comma
+    [[ "$currentpart" -ne $((length_of_parts - 1)) ]] && result+=", "
+    # if current part will be the last part of the sentence, say 'and'
+    [[ "$currentpart" -eq $((length_of_parts - 2)) ]] && result+="and "
+  done
+  printf '%s\n' "${result}"
 }
 
 get_satellite_list() {
@@ -453,6 +496,8 @@ handle_satellite_images() {
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
       # user input checks passed
+      # set stopwatch to keep track of total run time for fetching, starting from now
+      timer_start=$(date +%s)
       # introduce a large randomised wait before proceeding if this instance is running as a cron job
       handle_cron_sleep
       # now attempt to fetch what looks like a valid satellite ID
@@ -517,7 +562,10 @@ handle_satellite_images() {
             ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
         fi
       fi
+      # completed successfully, stop timer and display total runtime
+      timer_stop=$(date +%s)
       printf '\n%s\n\n' 'Completed successfully.'
+      printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
     ;;
   esac
 }
@@ -555,6 +603,8 @@ handle_radar_images() {
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
       # user input checks passed
+      # set stopwatch to keep track of total run time for fetching, starting from now
+      timer_start=$(date +%s)
       # introduce a large randomised wait before proceeding if this instance is running as a cron job
       handle_cron_sleep
       # now attempt to fetch what looks like a valid radar ID
@@ -656,8 +706,10 @@ handle_radar_images() {
       # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
       2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
 
-      # everything has gone well if we got this far without exiting
+      # completed successfully, stop timer and display total runtime
+      timer_stop=$(date +%s)
       printf '\n%s\n\n' 'Completed successfully.'
+      printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
     ;;
   esac
 }
@@ -713,6 +765,8 @@ handle_timelapse_images() {
       # set up arrays to capture exit codes from `convert` and `ffmpeg` during each iteration, as we'll test these later to check if any errors are encountered
       convert_result=()
       ffmpeg_result=()
+      # set stopwatch to keep track of total run time for assembling timelapse, starting from now
+      timer_start=$(date +%s)
       
       # prepare each image as video frames
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
@@ -853,6 +907,9 @@ handle_timelapse_images() {
         exit 1
       fi
       
+      # encountered no error exit, so stop timer and report how long we've been running
+      timer_stop=$(date +%s)
+      printf '%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
       # open the timelapse video file in the user's preferred application
       ##xdg-open "${timelapse_file}"
     ;;
