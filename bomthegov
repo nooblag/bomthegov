@@ -344,9 +344,9 @@ merge_lists() {
   # can find/replace on both satellite or radars lists
   local csv_file="${1}"
   local list_file="${2}"
-  export arg="${3}" # used to determine if we should prettify display or not, passed to `awk`
+  # pass $3 to `awk` to use in its test to determine if it should prettify display or not
   # load gawk script from .etc
-  gawk --field-separator=',' --file="${wd}/.etc/merge-lists.awk" "${csv_file}" "${list_file}"
+  gawk --field-separator=',' --file="${wd}/.etc/merge-lists.awk" --assign=prettify="${3}" "${csv_file}" "${list_file}"
 }
 
 strict_test_satellite_id() {

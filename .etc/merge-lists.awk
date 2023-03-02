@@ -4,9 +4,11 @@
 # merge the two data sets and then prettify the results to display them
 # thanks to @SasaK for the help here
 
-# put the function arg into a variable for awk (we have to weirdly quote it because of nested shell quoting)
-# to test later whether we are writing matches in CSV format or displaying a pretty list to pass to `less`
-BEGIN { prettify = "'"$arg"'" }
+BEGIN {
+  # get the $3 argument passed to merge_lists() function into a variable for awk (we have to weirdly quote it because of nested shell quoting)
+  # used to test later whether we are writing matches in CSV format or displaying a pretty list to pass to `less`
+  ##prettify = "'"$arg"'" # now commented out as we'll use `--assign=prettify="${3}"` in the function that passes this to `awk` itself
+}
 
 # set up prettification
 function make_newline(line) {
