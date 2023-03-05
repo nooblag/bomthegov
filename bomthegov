@@ -1,8 +1,21 @@
 #!/bin/bash
 
-# jore - fetch radar and satellite images from bom the gov and build stop-animations from collected data
+# bomthegov
+# fetch radar and satellite images from bom.gov.au and build timelapse videos from collected data
+
 
 ## set up environment
+  this_name='bomthegov'
+  this_version='0.1.1'
+  this_name_and_version="${this_name} - Version ${this_version}"
+  this_name_and_version_and_author="${this_name_and_version} - by @nooblag"
+  fullpath_and_filename="$(readlink --canonicalize "${0}")"
+  working_directory="$(dirname "${fullpath_and_filename}")"
+  # name of this file only: ${0##*/}
+  # relative path and file name: ${0}
+  # full path and file name: ${fullpath_and_filename}
+  # full path only: ${working_directory}
+
 # references for mapping exit codes
   # exit_1='software or file dependency fail'
   # exit_2='problem working with paths'
@@ -16,18 +29,10 @@
 # if we get something other than zero, fd0/fd1 etc is not open = this is running as an automated job
 ! tty --quiet && cron=1 && process='no-tty: '
 
-# determine and set up relative paths
-fullpath_and_name="$(readlink --canonicalize "${0}")"
-wd="$(dirname "${fullpath_and_name}")"
-# name of this file only: ${0##*/}
-# relative path and file name: ${0}
-# full path and file name: ${fullpath_and_name}
-# full path only: ${wd}
-
 # setup debug logging
-logfile="${wd}/.xtrace.log"
+logfile="${working_directory}/.xtrace.log"
   # if the debug config setting file exists, switch on logging
-  if [[ -e "${wd}/.config/debug" ]]; then
+  if [[ -e "${working_directory}/.config/debug" ]]; then
     # if the logfile exists and is larger than 6 megabytes, quietly rotate it
     find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
     # now handle log file headings
@@ -45,10 +50,10 @@ logfile="${wd}/.xtrace.log"
     # print the appropriate heading
     if [[ -s "${logfile}" ]]; then
       # log already exists so bump with some whitespace before logging this session
-      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${process}" >> "${logfile}"
+      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date)" "${process}" >> "${logfile}"
     else
       # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
-      printf '%s --- %s --- %s ---\n\n' "--- bomthegov" "$(date)" "${process}" > "${logfile}"
+      printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date)" "${process}" > "${logfile}"
     fi
     # now actually set up the process to write xtrace and stderr output to a log file for debugging
     # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
@@ -102,16 +107,16 @@ if [[ "${#failed[@]}" -ne 0 ]]; then
 fi
 
 # ensure bundled data files exist and are not empty
-if ! [[ -s "${wd}/.data/desc.csv" ]]; then
-  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall bomthegov. See 'readme.md' for instructions."
+if ! [[ -s "${working_directory}/.data/desc.csv" ]]; then
+  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall ${this_name}. See 'readme.md' for instructions."
   exit 1
 fi
 
 # ensure we have a path for image storage available
-mkdir --parents "${wd}/.tmp" "${wd}/images" || exit 2
+mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
 
 # set a temporary storage for this session
-tmp="$(mktemp --directory --tmpdir="${wd}/.tmp" .session-XXXXXXXXXXXXXXXX)"
+tmp="$(mktemp --directory --tmpdir="${working_directory}/.tmp" .session-XXXXXXXXXXXXXXXX)"
 
 # set a trap to ensure garbage collection from now on
 trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
@@ -131,8 +136,10 @@ less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
 
 # basic about info
 display_about() {
-  printf '\n%s - %s - %s\n\n' 'bomthegov' 'Version 0.1.1' 'by @nooblag'
   cat <<-end_cat
+
+	${this_name_and_version_and_author}
+
 	A tool to fetch radar or satellite images at set intervals from the Australien [sic]
 	Bureau of Meteorology (BOM) public archive, and build simple timelapse videos from
 	collected images.
@@ -154,8 +161,9 @@ display_help() {
 	  radar         Collect images from a radar.
 	  timelapse     Generate a timelapse video from collected images.
 	  reset         Delete all collected images, and archives.
-	  update        Download and apply latest version of bomthegov.
-	  debug         Turn code debug logging on/off.
+	  update        Download and apply latest version of ${this_name}.
+	  debug         Turn on/off code debug logging.
+	  version       Display version information.
 	  help          Display this help message.
 
 	For example:
@@ -187,7 +195,7 @@ display_satellite_help() {
 	                 example, '16:??' will match all images available inside 4pm only.
 
 	                *** Please note *** the "delete time" (DelT) for some satellite images is
-	                 less than 24hrs, so this setting is mostly only useful when bomthegov
+	                 less than 24hrs, so this setting is mostly only useful when ${this_name}
 	                 is running as an automated job (for example, a cronjob), as a glob pattern
 	                 outside DelT will not return any matches, and hence capture no images. You
 	                 can run the 'list' option from above to get data on each satellite's DelT.
@@ -223,7 +231,7 @@ display_radar_help() {
 	                 example, '16:??' will match all images available inside 4pm.
 
 	                *** Please note *** the "delete time" (DelT) for some radar images is less
-	                 than 2hrs, so this setting is mostly only useful when bomthegov is running
+	                 than 2hrs, so this setting is mostly only useful when ${this_name} is running
 	                 as an automated job (for example, a cronjob), as a glob pattern outside of
 	                 DelT will not return any matches, and hence capture no images. You can run
 	                 the 'list' option from above to get data on each radar's DelT.
@@ -260,6 +268,16 @@ display_debug_help() {
 	  off           Turn off logging and erase any existing logs.
 
 	end_cat
+}
+
+display_version() {
+  cat <<-end_cat
+	${this_name}
+	Version ${this_version}
+
+	end_cat
+  # now display license amble from bundled file
+  cat "${working_directory}/license.md"
 }
 
 display_flock_error() {
@@ -363,7 +381,7 @@ get_radar_list() {
 get_timelapse_list() {
   # find directories in image storage that have content in them and generate a list of what paths might be usable
   # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
-  find "${wd}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
+  find "${working_directory}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
   # if list file size is zero, then we have nothing to work with
   if ! [[ -s image-paths.list ]]; then
     printf "%s\n\n" "No image sets found. Try collecting some images?"
@@ -378,18 +396,18 @@ get_timelapse_list() {
   done < image-paths.list
   # pretty display
   printf '\n\n%s\n\n' "The following IDs seem to have possible collected image data ready to timelapse:"
-  merge_lists "${wd}/.data/desc.csv" 'timelapse-IDs.list' prettify && printf '\n'
+  merge_lists "${working_directory}/.data/desc.csv" 'timelapse-IDs.list' prettify && printf '\n'
 }
 
 merge_lists() {
-  # match found IDs using `awk` from a CSV file that contains rows of descriptive data about known IDs  
+  # match found IDs using `awk` from a CSV file that contains rows of descriptive data about known IDs
   # merge the two data sets and then prettify the results to display them
   # can find/replace on both satellite or radars lists
   local csv_file="${1}"
   local list_file="${2}"
   # pass $3 to `awk` to use in its test to determine if it should prettify display or not
   # load gawk script from .etc
-  gawk --field-separator=',' --file="${wd}/.etc/merge-lists.awk" --assign=prettify="${3}" "${csv_file}" "${list_file}"
+  gawk --field-separator=',' --file="${working_directory}/.etc/merge-lists.awk" --assign=prettify="${3}" "${csv_file}" "${list_file}"
 }
 
 strict_test_satellite_id() {
@@ -481,16 +499,16 @@ handle_satellite_images() {
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
       # ensure security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
-      merge_lists "${wd}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
-      
+
     ''|'help')
       # no option given, so display help
       # or help explicitly asked for
       display_satellite_help
     ;;
-      
+
     *)
       # passed variable user input here
       # run sanitation and formatting tests
@@ -520,12 +538,12 @@ handle_satellite_images() {
         # got the list and the ID exists, everything fine, add some pretty empty space
         printf '\n\n'
       fi
-      
+
       # finished user input tests, so we have something to work with
       # ensure target paths exist and prepare to fetch
-      mkdir --parents "${wd}/images/satellite/${id}" || exit 2
-      cd "${wd}/images/satellite/${id}/" || exit 2
-      
+      mkdir --parents "${working_directory}/images/satellite/${id}" || exit 2
+      cd "${working_directory}/images/satellite/${id}/" || exit 2
+
       # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
       if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
         # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
@@ -536,7 +554,7 @@ handle_satellite_images() {
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
         # now actually do the fetching
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
           2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
       else
@@ -552,12 +570,12 @@ handle_satellite_images() {
           # satellite images are quite large, so bulk transfers of whole image sets before each "delete time" at remote end (DelT) are the most resource intensive for bom
           printf '%s\n\n' "*** Running as a cronjob, so going slow ***"
           # now do the fetching
-          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
             2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --wait=5 --random-wait --reject=tmp \
             ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
         else
           # interactively running, so fetch at a pace that isn't slowed down
-          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/satellite/${id}" --command " \
+          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
             2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
             ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
         fi
@@ -588,16 +606,16 @@ handle_radar_images() {
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
       # ensure the security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
       export LESSSECURE=1
-      merge_lists "${wd}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
-      
+
     ''|'help')
       # no option given, so display help
       # or help explicitly asked for
       display_radar_help
     ;;
-      
+
     *)
       # passed variable user input here
       # run sanitation and formatting tests
@@ -627,11 +645,11 @@ handle_radar_images() {
         # everything fine, so pop in some pretty empty space
         printf '\n\n'
       fi
-      
+
       # looking good, ensure storage is available
-      mkdir --parents "${wd}/images/radar/${id}" || exit 2
-      cd "${wd}/images/radar/${id}/" || exit 2
-      
+      mkdir --parents "${working_directory}/images/radar/${id}" || exit 2
+      cd "${working_directory}/images/radar/${id}/" || exit 2
+
       # get the radar images
       # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
       if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
@@ -642,7 +660,7 @@ handle_radar_images() {
         # remove colon from globbing arg user input by using '//' parameter expansion
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
           2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
       else
@@ -650,16 +668,16 @@ handle_radar_images() {
         # filename pattern on bom server is ID.T.YYYYMMDDHHMM, png file extension
         # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 2 hours, for example)
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${wd}/images/radar/${id}" --command " \
+        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
           2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
           ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
       fi
 
-      
+
       # get the background image layers if need be
       printf '\n%s\n' "Getting geographical layers:"
-      mkdir --parents "${wd}/images/radar/${id}/layers" || exit 2
-      cd "${wd}/images/radar/${id}/layers/" || exit 2
+      mkdir --parents "${working_directory}/images/radar/${id}/layers" || exit 2
+      cd "${working_directory}/images/radar/${id}/layers/" || exit 2
       # the second last characters of an ID denotes it's location set
       # so for example in IRD031, 03 = Wollongong NSW, 1=512km composite view, 2=256km, 3=128km, 4=64km
       #                in IRD03A, 03 = Wollongong NSW, A=rain per 6 minutes, B=per hour, C=since 9am, D=24hrs, I=doppler wind velocity
@@ -669,7 +687,7 @@ handle_radar_images() {
       # online it looks like they use the 'IDE00135.radar' satellite image
       # i.e. http://www.bom.gov.au/products/national_radar_sat.loop.shtml
       # waaargh, not sure why bom the gov is messy here?
-      
+
       # so, if dealing with the national rainfall radar (IDR00004)
       if [[ "${id}" == 'IDR00004' ]]; then
         # hardcode getting a known static national background image
@@ -684,25 +702,25 @@ handle_radar_images() {
           --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
           --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
           --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
-     
+
       # then if the ID ends in A B C D or I
       elif [[ "${id}" =~ [A-D|I]$ ]]; then
         # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
         # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
-      
+
       # none of the above exceptions have been met
       else
         # don't need to do anything special, so get the ID layers as they're published; phew!
         # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
         2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
       fi
-      
+
       # ensure radar image legend layers are available
       printf '\n%s\n' "Getting graph legends:"
-      mkdir --parents "${wd}/images/radar/legend" || exit 2
-      cd "${wd}/images/radar/legend" || exit 2
+      mkdir --parents "${working_directory}/images/radar/legend" || exit 2
+      cd "${working_directory}/images/radar/legend" || exit 2
       # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
       2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
 
@@ -723,19 +741,19 @@ handle_timelapse_images() {
       get_timelapse_list | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
-    
+
     ''|'help')
       # no option given, so display help
       display_timelapse_help
     ;;
-      
+
     *)
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being user input from command line
       # get resulting context, i.e. if after tests, ID is a radar or a satellite as we need to do different processing for each
       context="${id_type}"
-    
+
       # now check to see if we have any collected images for this ID
       # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
       # use a subshell so our changes to `shopt` are temporary
@@ -744,20 +762,20 @@ handle_timelapse_images() {
       # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
       # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
       # also we don't need quoting in the array because we want things to intentionally wordsplit
-      files=($(shopt -s nullglob dotglob; echo "${wd}/images/${context}/${id}/"*.*))
+      files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.*))
       # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
       # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
       # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here, unless we use messy exec?)
       # this method of checking is also superior because we reduce processing later by already having matched files ready to go in an array
-      if ! [[ -d "${wd}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
+      if ! [[ -d "${working_directory}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
         printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
         printf '%s\n\n' "Try 'bash ${0} ${context} ${id}' to start collecting images first."
         exit 3
       fi
-      
+
       # switch to the folder now we've checked the user input for it is legit
-      cd "${wd}/images/${context}/${id}/" || exit 2
-      
+      cd "${working_directory}/images/${context}/${id}/" || exit 2
+
       # ensure we have a scratch storage ready for current conversion to be temporarily saved into
       scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
       # set up a counter for 'percentage complete' tracking in next steps
@@ -767,7 +785,7 @@ handle_timelapse_images() {
       ffmpeg_result=()
       # set stopwatch to keep track of total run time for assembling timelapse, starting from now
       timer_start=$(date +%s)
-      
+
       # prepare each image as video frames
         # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
         if [[ "${context}" == 'satellite' ]]; then
@@ -777,8 +795,8 @@ handle_timelapse_images() {
           # import bundled settings to from .config folder to explicitly increase width and height limits, etc, for bomthegov spawned instances only
           # documentation at: https://imagemagick.org/script/resources.php
             # specify the path where imagemagick should look for policy.xml
-            export MAGICK_CONFIGURE_PATH="${wd}/.config/ImageMagick/"
-        
+            export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
+
           # now actually do the conversion
           for file in "${files[@]}"; do
             printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
@@ -810,11 +828,11 @@ handle_timelapse_images() {
           # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
           # determine what legend is required first, based on it's ID structure
             # if ID ends in a number, it's a rainfields data; use legend 0 (rain rate scale, light -> heavy)
-            [[ "${id}" =~ [0-9]$ ]] && legend="${wd}/images/radar/legend/IDR.legend.0.png"
+            [[ "${id}" =~ [0-9]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.0.png"
             # if ID ends in A B C or D then it's a rainfields data; use legend 1 (rainfall in mm)
-            [[ "${id}" =~ [A-D]$ ]] && legend="${wd}/images/radar/legend/IDR.legend.1.png"
+            [[ "${id}" =~ [A-D]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.1.png"
             # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
-            [[ "${id}" =~ I$ ]] && legend="${wd}/images/radar/legend/IDR.legend.2.png"
+            [[ "${id}" =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
 
           # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
           # otherwise, it's a radar as "usual" so assemble those layers
@@ -849,7 +867,7 @@ handle_timelapse_images() {
             done
           fi
         fi
-      
+
       # if conversion encountered any errors, stop here
         # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
         # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
@@ -866,10 +884,10 @@ handle_timelapse_images() {
       # utc is also useful as bom/generic weather seems to prefer that for consistency (although, bom not always)
       timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
       timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
-      timelapse_file="${wd}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
-      
+      timelapse_file="${working_directory}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
+
       # ensure directory to store created timelapse exists
-      mkdir --parents "${wd}/timelapse" || exit 2
+      mkdir --parents "${working_directory}/timelapse" || exit 2
 
       # now make mp4 video timelapse!
       printf '\n%s\n' "Making MP4... "
@@ -899,14 +917,14 @@ handle_timelapse_images() {
         # after a successful timelapse is made, move the stored images folder to .archive and clean up the remaining folder once that's done
         # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
         printf '\n%s\n\n' "Timelapse video for ${id} ${context} successfully created."
-        mkdir --parents "${wd}/images/.archive/${context}/${id}" || exit 2
-        cd "${wd}" || exit 2
-        mv --force "${wd}/images/${context}/${id}/"*.* "${wd}/images/.archive/${context}/${id}/" && rm --force --recursive "${wd}/images/${context}/${id}"
+        mkdir --parents "${working_directory}/images/.archive/${context}/${id}" || exit 2
+        cd "${working_directory}" || exit 2
+        mv --force "${working_directory}/images/${context}/${id}/"*.* "${working_directory}/images/.archive/${context}/${id}/" && rm --force --recursive "${working_directory}/images/${context}/${id}"
       else
         printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
         exit 1
       fi
-      
+
       # encountered no error exit, so stop timer and report how long we've been running
       timer_stop=$(date +%s)
       printf '%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
@@ -920,7 +938,7 @@ handle_reset_cleanup() {
   printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder)."
   if handle_question "Are you sure you want to continue?"; then
     # yes, wipe out
-    rm --force --recursive "${wd}/images" && printf '%s\n\n' "Cleanup successful."
+    rm --force --recursive "${working_directory}/images" && printf '%s\n\n' "Cleanup successful."
   else
     printf '%s\n\n' "Stopping."
   fi
@@ -947,12 +965,12 @@ handle_debugging() {
     'on')
       # turn on code debugging log
       # the control is determined by the existence of a file called 'debug' in .config folder
-      if [[ -e "${wd}/.config/debug" ]]; then
+      if [[ -e "${working_directory}/.config/debug" ]]; then
         # setting file already exists, nothing to do
         printf '%s\n' "Code debugging log setting is already on. :)"
       else
         # create the file
-        touch "${wd}/.config/debug"
+        touch "${working_directory}/.config/debug"
         printf '%s\n' "Code debugging log now turned on. Thank you!"
       fi
     ;;
@@ -962,12 +980,12 @@ handle_debugging() {
       printf '\n%s\n' "This will turn off debug logging and delete existing logs."
       if handle_question "Are you sure you want to continue?"; then
         # yes, wipe the logs and turn off debugging
-        rm --force "${wd}/.config/debug" && rm --force "${logfile}" && printf '%s\n\n' "Code debugging log is off, and logs cleared."
+        rm --force "${working_directory}/.config/debug" && rm --force "${logfile}" && printf '%s\n\n' "Code debugging log is off, and logs cleared."
       else
         printf '%s\n\n' "Stopping."
       fi
     ;;
-    
+
     ''|'help')
       # no option given, so display help
       display_debug_help
@@ -987,6 +1005,7 @@ case "${1}" in
   'reset') handle_reset_cleanup;;
   'update') handle_update;;
   'debug') handle_debugging "$@";;
+  'version') display_version;;
   'help') display_help;;
   '') display_help;;
   *)
