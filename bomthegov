@@ -25,9 +25,8 @@
   # exit_6='interrupted'
 
 # first determine if script is running interactively or as a scheduled job by checking for an interactive tty
-# `tty` coreutil can return exit code only using `--quiet`
-# if we get something other than zero, fd0/fd1 etc is not open = this is running as an automated job
-! tty --quiet && cron=1 && process='no-tty: '
+# if we get something other than zero, the display (fd0) is not open = this is running as an automated job
+! [[ -t 0 ]] && cron=1 && process='no-tty: '
 
 # setup debug logging
 logfile="${working_directory}/.xtrace.log"
