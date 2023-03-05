@@ -127,8 +127,14 @@ trap 'tput cnorm && echo "   " && exit 6' SIGINT
 # set the temporary storage as the working directory
 cd "${tmp}" || exit 2
 
-# set some common strings for use throughout
-less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+# export some variables to setup specific environments for dependencies
+  # [less]
+  # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
+  export LESSSECURE=1
+  less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+  # [imagemagick]
+  # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
+  export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
 
 
 
@@ -497,8 +503,6 @@ handle_satellite_images() {
         exit 4
       fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      # ensure security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
-      export LESSSECURE=1
       merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
@@ -604,8 +608,6 @@ handle_radar_images() {
         exit 4
       fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      # ensure the security environment variable for `less` is set to disallow shell commands, piping, editing, log files and tab completion inside `less`
-      export LESSSECURE=1
       merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
@@ -737,7 +739,6 @@ handle_timelapse_images() {
     'list')
       # get list of image sets that have been collected
       printf '%s' "Searching for collected images... "
-      export LESSSECURE=1
       get_timelapse_list | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
       printf '\n'
     ;;
@@ -792,10 +793,8 @@ handle_timelapse_images() {
           # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
           # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
           # default megapixel limit for imagemagick is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
-          # import bundled settings to from .config folder to explicitly increase width and height limits, etc, for bomthegov spawned instances only
+          # set MAGICK_CONFIGURE_PATH to import bundled policy.xml settings to from .config folder to explicitly increase width and height limits, etc
           # documentation at: https://imagemagick.org/script/resources.php
-            # specify the path where imagemagick should look for policy.xml
-            export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
 
           # now actually do the conversion
           for file in "${files[@]}"; do
