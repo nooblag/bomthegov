@@ -302,22 +302,24 @@ display_spinner() {
   # set up a spinner for long-expected processes so the user can visually see the script is still working away
   # takes the pid of the process passed to the background and captured in $1, and displays a spinner until that process completes
   # solution derived with thanks to @david_rankin (https://stackoverflow.com/questions/47234947)
-  local proc="${1}"
-  local delay="0.15"
-  # get the cursor out of the way, by hiding it
-  tput civis
-  # do the spinning as long as the process is active
-  while [[ -d /proc/${proc} ]]; do
-    printf '\033[s\033[u[/]\033[u'; sleep "${delay}"
-    printf '\033[s\033[u[—]\033[u'; sleep "${delay}"
-    printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
-    printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
-  done
-  # return to normal by wiping out the spinner's combined character length (3 spaces)
-  printf '\033[s\033[u   \033[u\033[0m'
-  # restore the cursor
-  tput cnorm
-  return 0
+  if [[ ${cron} -ne 1 ]]; then
+    local proc="${1}"
+    local delay="0.15"
+    # get the cursor out of the way, by hiding it
+    tput civis
+    # do the spinning as long as the process is active
+    while [[ -d /proc/${proc} ]]; do
+      printf '\033[s\033[u[/]\033[u'; sleep "${delay}"
+      printf '\033[s\033[u[—]\033[u'; sleep "${delay}"
+      printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
+      printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
+    done
+    # return to normal by wiping out the spinner's combined character length (3 spaces)
+    printf '\033[s\033[u   \033[u\033[0m'
+    # restore the cursor
+    tput cnorm
+    return 0
+  fi
   # to use the spinner, send a command to the background, capture its pid, then set the spinner to run while 'listening' for that task to finish
   # example, using `sleep 2`
     # sleep 2 & pid=${!}
