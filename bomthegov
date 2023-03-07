@@ -128,11 +128,19 @@ trap 'tput cnorm && echo "   " && exit 6' SIGINT
 # set the temporary storage as the working directory
 cd "${tmp}" || exit 2
 
+
+
+## setenv
 # export some variables to setup specific environments for dependencies
+  
   # [less]
+  # set up a 'global' prompt to use everywhere, including in help docs
+  less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+  # set up `less` to use custom prompt and mouse, etc
+  export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
   # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
   export LESSSECURE=1
-  less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+  
   # [imagemagick]
   # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
   export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
@@ -506,7 +514,7 @@ handle_satellite_images() {
         exit 4
       fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify | less
       printf '\n'
     ;;
 
@@ -611,7 +619,7 @@ handle_radar_images() {
         exit 4
       fi
       # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify | less
       printf '\n'
     ;;
 
@@ -742,7 +750,7 @@ handle_timelapse_images() {
     'list')
       # get list of image sets that have been collected
       printf '%s' "Searching for collected images... "
-      get_timelapse_list | less --quit-if-one-screen --ignore-case --mouse --prompt="${less_prompt}"
+      get_timelapse_list | less
       printf '\n'
     ;;
 
