@@ -866,6 +866,8 @@ handle_timelapse_images() {
           # documentation at: https://imagemagick.org/script/resources.php
 
           # now actually do the conversion
+          # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+          tput civis
           for file in "${files[@]}"; do
             printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
             # get the name of the current file only by stripping off its path
@@ -890,6 +892,8 @@ handle_timelapse_images() {
             # return cursor to the start of the line
             printf '\r'
           done
+          # restore the cursor
+          tput cnorm
 
         # if we're making a timelapse of a radar, assemble its layers
         elif [[ "${context}" == 'radar' ]]; then
@@ -907,6 +911,8 @@ handle_timelapse_images() {
           # such a messy bom
           if [[ "${id}" == 'IDR00004' ]]; then
             # the conversion loop should exclude layers that don't exist for national radar
+            # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+            tput civis
             for file in "${files[@]}"; do
               printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
               # do conversion quietly
@@ -919,7 +925,11 @@ handle_timelapse_images() {
               # return cursor to the start of the line
               printf '\r'
             done
+            # restore the cursor
+            tput cnorm
           else
+            # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+            tput civis
             # a radar as usual, so conversion loop should assemble known/desired layers
             for file in "${files[@]}"; do
               printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
@@ -933,6 +943,8 @@ handle_timelapse_images() {
               ((count++))
               printf '\r'
             done
+            # restore the cursor
+            tput cnorm
           fi
         fi
 
