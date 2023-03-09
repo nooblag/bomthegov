@@ -149,7 +149,6 @@ cd "${tmp}" || exit 2
 
 ## functions
 
-# basic about info
 display_about() {
   cat <<-end_cat
 
@@ -162,7 +161,6 @@ display_about() {
 	end_cat
 }
 
-# initial help
 display_help() {
   # display the about information first
   display_about
@@ -204,14 +202,14 @@ display_satellite_help() {
 	                images from 2:30am only.
 
 	                Single character globbing (a question mark) can be used
-	                to wildcard minutes. For example, '09:2?' will extract
+	                to wildcard minutes. For example, '09:2?' will fetch
 	                images from *any* minute inside twenty past nine; while
-	                '20:?4' will extract any image inside any ten minute
+	                '20:?4' will fetch any image inside any ten minute
 	                range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54)
 	                inside eight o'clock.
 
-	                Double question marks can also be used to extract for
-	                the whole hour. So for example, '16:??' will match all
+	                Double question marks can also be used to fetch for the
+	                whole hour. So for example, '16:??' will match all
 	                images available inside 4pm only.
 
 	                *** Please note *** the "delete time" (DelT) for some
@@ -246,13 +244,13 @@ display_radar_help() {
 	                '02:30' will collect any images from 2:30am only.
 
 	                Single character globbing (a question mark) can be used
-	                to wildcard minutes. For example, '09:2?' will extract
+	                to wildcard minutes. For example, '09:2?' will fetch
 	                images from any minute inside twenty past nine; while
-	                '20:?4' will extract any image inside any ten minute
+	                '20:?4' will fetch any image inside any ten minute
 	                range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54)
 	                inside eight o'clock.
 
-	                Double question marks can also be used to extract for
+	                Double question marks can also be used to fetch for
 	                the whole hour. So for example, '16:??' will match all
 	                images available inside 4pm only.
 
@@ -299,7 +297,7 @@ display_debug_help() {
 }
 
 display_verbose_help() {
-  # pretty display the ile in $1
+  # pretty display the help file passed to here in $1
   # applying word-wrap using `fmt` and then pass to `less` to handle scrolling, etc
   fmt --split-only "${1}" | less
 }
@@ -1045,7 +1043,7 @@ case "${1}" in
   'satellite') handle_satellite_images "$@";;
   'timelapse') handle_timelapse_images "$@";;
   'reset') handle_reset_cleanup;;
-  #'update') handle_update;;
+  'update') handle_update;;
   'debug') handle_debugging "$@";;
   'version') display_version;;
   'help') display_verbose_help "${working_directory}/docs/readme.md";;
