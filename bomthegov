@@ -985,9 +985,9 @@ handle_timelapse_images() {
         # after a successful timelapse is made, move the stored images folder to .archive and clean up the remaining folder once that's done
         # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
         printf '\n%s\n\n' "Timelapse video for ${id} ${context} successfully created."
-        mkdir --parents "${working_directory}/images/.archive/${context}/${id}" || exit 2
+        mkdir --parents "${working_directory}/images/.archive/${context}" || exit 2
         cd "${working_directory}" || exit 2
-        mv --force "${working_directory}/images/${context}/${id}/"*.* "${working_directory}/images/.archive/${context}/${id}/" && rm --force --recursive "${working_directory}/images/${context}/${id}"
+        mv --force "${working_directory}/images/${context}/${id}" "${working_directory}/images/.archive/${context}"
       else
         printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
         exit 1
