@@ -109,9 +109,13 @@ fi
 
 # check if the following dependent bundled files exist and have contents
 required_files=(
-  "${working_directory}/.data/desc.csv"
   "${working_directory}/.etc/merge-lists.awk"
+  "${working_directory}/.data/desc.csv"
   "${working_directory}/.config/ImageMagick/policy.xml"
+  "${working_directory}/docs/radar.md"
+  "${working_directory}/docs/readme.md"
+  "${working_directory}/docs/satellite.md"
+  "${working_directory}/docs/timelapse.md"
 )
 for file in "${required_files[@]}"; do
   [[ ! -s "${file}" ]] && failed+=("${file}")
@@ -167,9 +171,9 @@ display_about() {
 
 	${this_name_and_version_and_author}
 
-	A tool to fetch radar or satellite images at set intervals from the Australien [sic]
-	Bureau of Meteorology (BOM) public archive, and build simple timelapse videos from
-	collected images.
+	A tool to fetch radar or satellite images at set intervals from the
+	Australien [sic] Bureau of Meteorology (BOM) public archive, and
+	build simple timelapse videos from collected images.
 
 	end_cat
 }
@@ -208,23 +212,30 @@ display_satellite_help() {
 	  list          Fetch a list of available satellite IDs.
 	  <id>          Start collecting images of <id> satellite.
 
-	  <id> <HH:MM>  Collect a specific 24hr time from <id> satellite images. Time is UTC.
+	  <id> <HH:MM>  Collect a specific 24hr time from <id> satellite images.
 
-	                Time format is HH:MM. So for example, a value of '02:30' will collect
-	                 any images from 2:30am only.
+	                Time format is HH:MM in UTC.
+	                So for example, a value of '02:30' will collect any
+	                images from 2:30am only.
 
-	                Single character globbing (a question mark) can be used to wildcard minutes.
-	                 For example, '09:2?' will extract images from *any* minute inside twenty
-	                 past nine; while '20:?4' will extract any image inside any ten minute range
-	                 ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
-	                Double question marks can also be used to extract for the whole hour. So for
-	                 example, '16:??' will match all images available inside 4pm only.
+	                Single character globbing (a question mark) can be used
+	                to wildcard minutes. For example, '09:2?' will fetch
+	                images from *any* minute inside twenty past nine; while
+	                '20:?4' will fetch any image inside any ten minute
+	                range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54)
+	                inside eight o'clock.
 
-	                *** Please note *** the "delete time" (DelT) for some satellite images is
-	                 less than 24hrs, so this setting is mostly only useful when ${this_name}
-	                 is running as an automated job (for example, a cronjob), as a glob pattern
-	                 outside DelT will not return any matches, and hence capture no images. You
-	                 can run the 'list' option from above to get data on each satellite's DelT.
+	                Double question marks can also be used to fetch for the
+	                whole hour. So for example, '16:??' will match all
+	                images available inside 4pm only.
+
+	                *** Please note *** the "delete time" (DelT) for some
+	                satellite images is less than 24hrs, so this setting is
+	                mostly only useful when ${this_name} is running as an
+	                automated job (for example, a cronjob), as a glob pattern
+	                outside DelT will not return any matches, and hence
+	                capture no images. You can run the 'list' option from
+	                above to get data on each satellite's DelT.
 
 	  help          Display this help message.
 
@@ -244,23 +255,29 @@ display_radar_help() {
 	  list          Fetch a list of available radar IDs.
 	  <id>          Start collecting images of <id> radar.
 
-	  <id> <HH:MM>  Collect a specific 24hr time from <id> radar images. Time is UTC.
+	  <id> <HH:MM>  Collect a specific 24hr time from <id> radar images
 
-	                Time format is HH:MM. So for example, a value of '02:30' will collect
-	                 any images from 2:30am only.
+	                Time format is HH:MM in UTC. So for example, a value of
+	                '02:30' will collect any images from 2:30am only.
 
-	                Single character globbing (a question mark) can be used to wildcard minutes.
-	                 For example, '09:2?' will extract images from any minute inside twenty
-	                 past nine; while '20:?4' will extract any image inside any ten minute range
-	                 ending with 4 (i.e. 04, 14, 24, 34, 44, and 54) inside eight o'clock.
-	                Double question marks can also be used to extract for the whole hour. So for
-	                 example, '16:??' will match all images available inside 4pm.
+	                Single character globbing (a question mark) can be used
+	                to wildcard minutes. For example, '09:2?' will fetch
+	                images from any minute inside twenty past nine; while
+	                '20:?4' will fetch any image inside any ten minute
+	                range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54)
+	                inside eight o'clock.
 
-	                *** Please note *** the "delete time" (DelT) for some radar images is less
-	                 than 2hrs, so this setting is mostly only useful when ${this_name} is running
-	                 as an automated job (for example, a cronjob), as a glob pattern outside of
-	                 DelT will not return any matches, and hence capture no images. You can run
-	                 the 'list' option from above to get data on each radar's DelT.
+	                Double question marks can also be used to fetch for
+	                the whole hour. So for example, '16:??' will match all
+	                images available inside 4pm only.
+
+	                *** Please note *** the "delete time" (DelT) for some
+	                radar images is less than 2hrs, so this setting is mostly
+	                only useful when ${this_name} is running as an automated
+	                job (for example, a cronjob), as a glob pattern outside
+	                of DelT will not return any matches, and hence capture no
+	                images. You can run the 'list' option from above to get
+	                data on each radar's DelT.
 
 	  help          Display this help message.
 
@@ -296,6 +313,12 @@ display_debug_help() {
 	end_cat
 }
 
+display_verbose_help() {
+  # pretty display the help file passed to here in $1
+  # applying word-wrap using `fmt` and then pass to `less` to handle scrolling, etc
+  fmt --split-only "${1}" | less
+}
+
 display_version() {
   cat <<-end_cat
 	${this_name}
@@ -303,7 +326,7 @@ display_version() {
 
 	end_cat
   # now display license amble from bundled file
-  cat "${working_directory}/license.md"
+  display_verbose_help "${working_directory}/license.md"
 }
 
 display_flock_error() {
@@ -530,9 +553,13 @@ handle_satellite_images() {
       printf '\n'
     ;;
 
-    ''|'help')
-      # no option given, so display help
-      # or help explicitly asked for
+    'help')
+      # pretty display file from bundled help docs
+      display_verbose_help "${working_directory}/docs/satellite.md"
+    ;;
+
+    '')
+      # no option given, so display quick general help
       display_satellite_help
     ;;
 
@@ -637,9 +664,13 @@ handle_radar_images() {
       printf '\n'
     ;;
 
-    ''|'help')
-      # no option given, so display help
-      # or help explicitly asked for
+    'help')
+      # pretty display file from bundled help docs
+      display_verbose_help "${working_directory}/docs/radar.md"
+    ;;
+
+    '')
+      # no option given, so display quick general help
       display_radar_help
     ;;
 
@@ -770,8 +801,13 @@ handle_timelapse_images() {
       printf '\n'
     ;;
 
-    ''|'help')
-      # no option given, so display help
+    'help')
+      # pretty display file from bundled help docs
+      display_verbose_help "${working_directory}/docs/timelapse.md"
+    ;;
+
+    '')
+      # no option given, so display quick general help
       display_timelapse_help
     ;;
 
@@ -1033,7 +1069,7 @@ case "${1}" in
   'update') handle_update;;
   'debug') handle_debugging "$@";;
   'version') display_version;;
-  'help') display_help;;
+  'help') display_verbose_help "${working_directory}/docs/readme.md";;
   '') display_help;;
   *)
     printf "%s: '%s'\n" "Invalid option" "${1}"
