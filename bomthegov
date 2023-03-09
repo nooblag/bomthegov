@@ -120,9 +120,9 @@ required_files=(
 for file in "${required_files[@]}"; do
   [[ ! -s "${file}" ]] && failed+=("${file}")
 done
-# if not running 'update' (to fix the problem of missing files)
-# and $failed array contains something, then report what is missing and what to do to fix
-if [[ "${1}" != 'update' ]] && [[ "${#failed[@]}" -ne 0 ]]; then
+# if $failed array contains something, report what files are missing and what the user can do to fix
+# but only when not running 'update' (to fix the problem of missing files)
+if [[ "${#failed[@]}" -ne 0 ]] && [[ "${1}" != 'update' ]]; then
   printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
   # iterate over each missing program in 'failed' array
   for file in "${failed[@]}"; do
