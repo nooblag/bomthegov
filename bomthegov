@@ -107,55 +107,64 @@ if [[ "${#failed[@]}" -ne 0 ]]; then
   exit 1
 fi
 
-# ensure required bundled files exist and have some contents in them
-# but first check we're not trying to 'update' to fix this problem
-if [[ "${1}" != 'update' ]]; then
-  if [[ ! -s "${working_directory}/.data/desc.csv" ]] || \
-     [[ ! -s "${working_directory}/.etc/merge-lists.awk" ]] || \
-     [[ ! -s "${working_directory}/.config/ImageMagick/policy.xml" ]]; then
-    printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
-    printf '%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
-    exit 1
-  fi
-fi
-
-# ensure we have a path for image storage available
-mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
-
-# set a temporary storage for this session
-tmp="$(mktemp --directory --tmpdir="${working_directory}/.tmp" .session-XXXXXXXXXXXXXXXX)"
-
-# set a trap to ensure garbage collection from now on
-trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
-# set a trap to ensure cursor is reset if interrupted by user and everything stops
-# final errexit will also trip garbage collection EXIT trap above
-trap 'tput cnorm && echo "   " && exit 6' SIGINT
-
-# set the temporary storage as the working directory
-cd "${tmp}" || exit 2
-
-
-
-## setenv
-# export some variables to setup specific environments for dependencies
-  
-  # [less]
-  # set up a 'global' prompt to use everywhere, including in help docs
-  less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
-  # set up `less` to use custom prompt and mouse, etc
-  export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
-  # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
-  export LESSSECURE=1
-  
-  # [imagemagick]
-  # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
-  export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
-
 
 
 ## functions
 
-# basic about info
+init() {
+  # ensure required bundled files exist and have some contents in them
+  required_files=(
+    "${working_directory}/.data/desc.csv"
+    "${working_directory}/.etc/merge-lists.awk"
+    "${working_directory}/.config/ImageMagick/policy.xml"
+  )
+  for file in "${required_files[@]}"; do
+    [[ ! -s "${file}" ]] && failed+=("${file}")
+  done
+  # if $failed array contains something, then report what is missing
+  if [[ "${#failed[@]}" -ne 0 ]]; then
+    printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
+    # use `tput` to set the colour
+    printf '%s%s' "Missing: " "$(tput setaf 3)"
+    # iterate over each missing program in 'failed' array
+    for file in "${failed[@]}"; do
+      printf ' %s' "${file}"
+    done
+    # reset colour
+    printf '%s\n\n' "$(tput sgr0)"
+    # stop here and exit with error code
+    printf '%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
+    exit 1
+  fi
+
+  # ensure we have a path for image storage available
+  mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
+
+  # set a temporary storage for this session
+  tmp="$(mktemp --directory --tmpdir="${working_directory}/.tmp" .session-XXXXXXXXXXXXXXXX)"
+
+  # set a trap to ensure garbage collection from now on
+  trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
+  # set a trap to ensure cursor is reset if interrupted by user and everything stops
+  # final errexit will also trip garbage collection EXIT trap above
+  trap 'tput cnorm && echo "   " && exit 6' SIGINT
+
+  # set the temporary storage as the working directory
+  cd "${tmp}" || exit 2
+
+  # export some variables to setup specific environments for dependencies
+    # [less]
+      # set up a 'global' prompt to use everywhere, including in help docs
+      less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+      # set up `less` to use custom prompt and mouse, etc
+      export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
+      # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
+      export LESSSECURE=1
+    # [imagemagick]
+      # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
+      export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
+}
+
 display_about() {
   cat <<-end_cat
 
@@ -168,7 +177,6 @@ display_about() {
 	end_cat
 }
 
-# initial help
 display_help() {
   # display the about information first
   display_about
@@ -507,6 +515,7 @@ handle_cron_sleep() {
 handle_satellite_images() {
   case "${2}" in
     'list')
+      init
       printf '%s' "Fetching satellite list... "
       # run the function to fetch the list, push it to the background, and display spinner while we wait
       get_satellite_list & pid=${!}
@@ -531,6 +540,7 @@ handle_satellite_images() {
     ;;
 
     *)
+      init
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
@@ -612,6 +622,7 @@ handle_satellite_images() {
 handle_radar_images() {
   case "${2}" in
     'list')
+      init
       printf '%s' "Fetching radar list... "
       # run the function to fetch the list, push it to the background, and display spinner while we wait
       get_radar_list & pid=${!}
@@ -636,6 +647,7 @@ handle_radar_images() {
     ;;
 
     *)
+      init
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
@@ -754,6 +766,7 @@ handle_radar_images() {
 handle_timelapse_images() {
   case "${2}" in
     'list')
+      init
       # get list of image sets that have been collected
       printf '%s' "Searching for collected images... "
       get_timelapse_list | less
@@ -766,6 +779,7 @@ handle_timelapse_images() {
     ;;
 
     *)
+      init
       # passed variable user input here
       # run sanitation and formatting tests
       handle_user_input "${1}" "${2}" # $2 being user input from command line
