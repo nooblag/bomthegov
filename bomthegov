@@ -107,36 +107,33 @@ if [[ "${#failed[@]}" -ne 0 ]]; then
   exit 1
 fi
 
+# check if the following dependent bundled files exist and have contents
+required_files=(
+  "${working_directory}/.data/desc.csv"
+  "${working_directory}/.etc/merge-lists.awk"
+  "${working_directory}/.config/ImageMagick/policy.xml"
+)
+for file in "${required_files[@]}"; do
+  [[ ! -s "${file}" ]] && failed+=("${file}")
+done
+# if not running 'update' (to fix the problem of missing files)
+# and $failed array contains something, then report what is missing and what to do to fix
+if [[ "${1}" != 'update' ]] && [[ "${#failed[@]}" -ne 0 ]]; then
+  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
+  # iterate over each missing program in 'failed' array
+  for file in "${failed[@]}"; do
+    printf '%s %s %s %s\n' "Missing:" "$(tput setaf 3)" "${file}" "$(tput sgr0)"
+  done
+  # stop here and exit with error code
+  printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
+  exit 1
+fi
+
 
 
 ## functions
 
 init() {
-  # ensure required bundled files exist and have some contents in them
-  required_files=(
-    "${working_directory}/.data/desc.csv"
-    "${working_directory}/.etc/merge-lists.awk"
-    "${working_directory}/.config/ImageMagick/policy.xml"
-  )
-  for file in "${required_files[@]}"; do
-    [[ ! -s "${file}" ]] && failed+=("${file}")
-  done
-  # if $failed array contains something, then report what is missing
-  if [[ "${#failed[@]}" -ne 0 ]]; then
-    printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
-    # use `tput` to set the colour
-    printf '%s%s' "Missing: " "$(tput setaf 3)"
-    # iterate over each missing program in 'failed' array
-    for file in "${failed[@]}"; do
-      printf ' %s' "${file}"
-    done
-    # reset colour
-    printf '%s\n\n' "$(tput sgr0)"
-    # stop here and exit with error code
-    printf '%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
-    exit 1
-  fi
-
   # ensure we have a path for image storage available
   mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
 
