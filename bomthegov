@@ -107,10 +107,16 @@ if [[ "${#failed[@]}" -ne 0 ]]; then
   exit 1
 fi
 
-# ensure bundled data files exist and are not empty
-if ! [[ -s "${working_directory}/.data/desc.csv" ]]; then
-  printf '\n%s\n%s\n\n' "There is a problem with the bundled data file(s)." "Please reinstall ${this_name}. See 'readme.md' for instructions."
-  exit 1
+# ensure required bundled files exist and have some contents in them
+# but first check we're not trying to 'update' to fix this problem
+if [[ "${1}" != 'update' ]]; then
+  if [[ ! -s "${working_directory}/.data/desc.csv" ]] || \
+     [[ ! -s "${working_directory}/.etc/merge-lists.awk" ]] || \
+     [[ ! -s "${working_directory}/.config/ImageMagick/policy.xml" ]]; then
+    printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
+    printf '%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
+    exit 1
+  fi
 fi
 
 # ensure we have a path for image storage available
