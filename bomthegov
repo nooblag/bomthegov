@@ -46,6 +46,8 @@ logfile="${working_directory}/.xtrace.log"
     # append the name and path of here
     process+="${0}"
     # if any arguments have been passed here, append them to the line too
+    # because arrays implicitly concatenate inside [[ ]], we use explicit * here instead of @ for the positional parameters
+    # then in the quoted string, use "$*" to expand the positional parameters to a single word, separated by the set Internal Field Separator in $IFS
     [[ -n ${*} ]] && process+=" ${*}"
     # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
     # print the appropriate heading
@@ -542,8 +544,9 @@ handle_spinner() {
   # this function will run the args passed to it, send that process to the background, capture its pid
   # then displays the spinner until that process is complete, and return its exit code
   # these actions and syntax for display_spinner() are documented in that function above
-  if [[ -n ${@} ]]; then
-    ${@} & pid=${!}
+  # because arrays implicitly concatenate inside [[ ]], we use explicit * here instead of @ for the positional parameters
+  if [[ -n ${*} ]]; then
+    "${@}" & pid=${!}
     display_spinner ${pid}
     wait ${pid}; exit_code=${?}
     return ${exit_code}
@@ -1088,12 +1091,12 @@ handle_debugging() {
 
 # work out what to do from the first argument of user input
 case "${1}" in
-  'radar') handle_radar_images "$@";;
-  'satellite') handle_satellite_images "$@";;
-  'timelapse') handle_timelapse_images "$@";;
+  'radar') handle_radar_images "${@}";;
+  'satellite') handle_satellite_images "${@}";;
+  'timelapse') handle_timelapse_images "${@}";;
   'reset') handle_reset_cleanup;;
   'update') handle_update;;
-  'debug') handle_debugging "$@";;
+  'debug') handle_debugging "${@}";;
   'version') display_version;;
   'help') display_verbose_help "${working_directory}/docs/readme.md";;
   '') display_help;;
