@@ -537,16 +537,27 @@ handle_cron_sleep() {
   [[ "${cron}" -eq 1 ]] && sleep "$(shuf --input-range 0-60 --head-count 1)"
 }
 
+handle_spinner() {
+  # this function will run the args passed to it, send that process to the background, capture its pid
+  # then displays the spinner until that process is complete, and return its exit code
+  # these actions and syntax for display_spinner() are documented in that function above
+  if [[ -n ${@} ]]; then
+    ${@} & pid=${!}
+    display_spinner ${pid}
+    wait ${pid}; exit_code=${?}
+    return ${exit_code}
+  fi
+}
+
 handle_satellite_images() {
   case "${2}" in
     'list')
+      # doing work with files, so set up temporary workspace
       init
+      # say what we're doing
       printf '%s' "Fetching satellite list... "
-      # run the function to fetch the list, push it to the background, and display spinner while we wait
-      get_satellite_list & pid=${!}
-      display_spinner ${pid}
-      wait ${pid}; get_list_status=${?}
-      if [[ ${get_list_status} -eq 0 ]]; then
+      # run the get_satellite_list function with a spinner while we wait for it to complete
+      if handle_spinner get_satellite_list; then
         # getting list was a success, so pop in some pretty empty space
         printf '\n\n'
       else
@@ -569,6 +580,7 @@ handle_satellite_images() {
     ;;
 
     *)
+      # doing work with files, so set up temporary workspace
       init
       # passed variable user input here
       # run sanitation and formatting tests
@@ -581,10 +593,7 @@ handle_satellite_images() {
       # now attempt to fetch what looks like a valid satellite ID
       printf '\n%s' "Attempting to fetch ${id} satellite images: "
       # ensure we have recent list first
-      get_satellite_list & pid=${!}
-      display_spinner ${pid}
-      wait ${pid}; get_list_status=${?}
-      if [[ ${get_list_status} -ne 0 ]]; then
+      if ! handle_spinner get_satellite_list; then
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
@@ -651,13 +660,12 @@ handle_satellite_images() {
 handle_radar_images() {
   case "${2}" in
     'list')
+      # doing work with files, so set up temporary workspace
       init
+      # say what we're doing
       printf '%s' "Fetching radar list... "
-      # run the function to fetch the list, push it to the background, and display spinner while we wait
-      get_radar_list & pid=${!}
-      display_spinner ${pid}
-      wait ${pid}; get_list_status=${?}
-      if [[ ${get_list_status} -eq 0 ]]; then
+      # run the get_radar_list function with a spinner while we wait for it to complete
+      if handle_spinner get_radar_list; then
         # getting list was a success, so pop in some pretty empty space
         printf '\n\n'
       else
@@ -680,6 +688,7 @@ handle_radar_images() {
     ;;
 
     *)
+      # doing work with files, so set up temporary workspace
       init
       # passed variable user input here
       # run sanitation and formatting tests
@@ -692,10 +701,7 @@ handle_radar_images() {
       # now attempt to fetch what looks like a valid radar ID
       printf '\n%s' "Attempting to fetch ${id} radar data: "
       # ensure we have recent list first
-      get_radar_list & pid=${!}
-      display_spinner ${pid}
-      wait ${pid}; get_list_status=${?}
-      if [[ ${get_list_status} -ne 0 ]]; then
+      if ! handle_spinner get_radar_list; then
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
@@ -799,6 +805,7 @@ handle_radar_images() {
 handle_timelapse_images() {
   case "${2}" in
     'list')
+      # doing work with files, so set up temporary workspace
       init
       # get list of image sets that have been collected
       printf '%s' "Searching for collected images... "
@@ -817,6 +824,7 @@ handle_timelapse_images() {
     ;;
 
     *)
+      # doing work with files, so set up temporary workspace
       init
       # passed variable user input here
       # run sanitation and formatting tests
