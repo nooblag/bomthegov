@@ -1037,6 +1037,8 @@ handle_reset_cleanup() {
 }
 
 handle_update() {
+  # ensure we're on the 'main' branch
+  git checkout 'unstable' --quiet
   # quietly ensure we're at the last remote commit, to overwrite any local changes
   git reset --hard origin --quiet
   # pull latest code from remote
@@ -1044,7 +1046,8 @@ handle_update() {
   if git pull --force 1>&2; then
     # quietly rebase to integrate and resync local to the remote branch
     # use `--force-rebase` to replay all commits, ovewriting any local changes and sync to remote
-    git rebase --force-rebase --quiet
+    # if that goes well, clean out any stray files in the local repo directory
+    git rebase --force-rebase --quiet && git clean --force
   else
     # problem encountered pulling code
     printf '%s\n' "Updating ${0} failed."
