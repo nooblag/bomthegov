@@ -16,6 +16,7 @@ As the BOM [explains](http://www.bom.gov.au/australia/radar/about/):
 >
 > Generally, the optimal coverage area extends to approximately 200km away from the radar. Beyond this distance some rainfall echoes may be displayed on the radar image, however these echoes will be from clouds higher up in the atmosphere and will not directly correspond with conditions experienced on the ground.
 
+
 BOM currently operates over 60 radars.
 
 ![Map of BOM Radars](assets/bom-radars-map.png)
@@ -70,14 +71,14 @@ Some examples might make this clear:
 
   * A pattern of `20:?4` will fetch any image inside any ten minute range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54), inside eight o'clock.
 
-  * A pattern of `13:??` will fetch all images available inside 1pm only.
+  * A pattern of `13:??` will fetch all images available inside 1pm.
 
 Globbing is currently only available for minute ranges.
 
 
 **Please note**
 
-The "delete time" (DelT) for most radar images is 1.2hrs, so this setting is mostly only useful when bomthegov is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
+The "delete time" (DelT) for most radar images is 1.2hrs, so this setting is mostly only useful when **bomthegov** is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
 
 You can run the 'list' option to get data on each radar's DelT:
 
