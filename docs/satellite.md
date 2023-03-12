@@ -65,14 +65,14 @@ Some examples might make this clear:
 
   * A pattern of `20:?4` will fetch any image inside any ten minute range ending with 4 (i.e. 04, 14, 24, 34, 44, and 54), inside eight o'clock.
 
-  * A pattern of `13:??` will fetch all images available inside 1pm only.
+  * A pattern of `13:??` will fetch all images available inside 1pm.
 
 Globbing is currently only available for minute ranges.
 
 
 **Please note**
 
-The "delete time" (DelT) for some satellite images is less than 24hrs, so this setting is mostly only useful when bomthegov is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
+The "delete time" (DelT) for some satellite images is less than 24hrs, so this setting is mostly only useful when **bomthegov** is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
 
 You can run the 'list' option to get data on each satellite's DelT:
 
