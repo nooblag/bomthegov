@@ -33,20 +33,36 @@ cd bomthegov
 bash bomthegov
 ```
 
-should display a help screen to get you started.
+will display a help screen to get you started.
+
+<br />
+
+More in-depth documentation can be explored inside the program, by running:
+
+```
+bash bomthegov help
+```
+
+or by [browsing](docs/readme.md) the 'docs' folder.
 
 <br/>
 
-## Examples
+## Quick Examples
 
-List available satellites
+List available satellites:
 
 ```
 bash bomthegov satellite list
 ```
 
-Collect 2km resolution infrared/visual true-colour satellite images of Australia in [equirectangular projection](https://en.wikipedia.org/wiki/Equirectangular_projection) from the past 24 hours
+Collect 2km resolution infrared/visual true-colour satellite images of Australia in [equirectangular projection](https://en.wikipedia.org/wiki/Equirectangular_projection) from the past 24 hours:
 
 ```
 bash bomthegov satellite ide00406
+```
+
+Make a timelapse video from that collected image set:
+
+```
+bash bomthegov timelapse ide00406
 ```
