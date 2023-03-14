@@ -52,6 +52,8 @@ IDE00435,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale co
 IDE00436,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,2,24
 IDE00437,AUS equirectangular projection,WV (Ch8),2,24
 
+IDR00004,National,Radar Mosaic,N/A,6
+
 IDR011,Broadmeadows VIC,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR012,Broadmeadows VIC,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR013,Broadmeadows VIC,Local-scale 128km x 128km Composite,N/A,1.2
@@ -132,6 +134,11 @@ IDR102,Darwin NT (Backup),Mid-scale 256km x 256km Composite,N/A,1.2
 IDR103,Darwin NT (Backup),Local-scale 128km x 128km Composite,N/A,1.2
 IDR104,Darwin Airport NT,Local-scale 64km x 64km Composite,N/A,1.2
 IDR10I,Darwin Airport NT,Doppler wind velocity,N/A,1.2
+
+IDR1051,Brisbane Airport QLD,Broad Scale 512km x 512km Composite,N/A,1.2
+IDR1052,Brisbane Airport QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1053,Brisbane Airport QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1054,Brisbane Airport QLD,Local-scale 64km x 64km Composite,N/A,1.2
 
 IDR1071,Richmond QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR1072,Richmond QLD,Mid-scale 256km x 256km Composite,N/A,1.2
@@ -284,15 +291,21 @@ IDR40C,Canberra/Captains Flat NSW,Rainfields since 9am,N/A,10
 IDR40D,Canberra/Captains Flat NSW,Rainfields in 24 hours,N/A,240
 IDR40I,Canberra/Captains Flat NSW,Doppler wind velocity,N/A,1.2
 
+IDR411,Willis QLD,Broad Scale 512km x 512km Composite,N/A,1.2
+IDR412,Willis QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR413,Willis QLD,Local-scale 142km x 142km Composite,N/A,1.2
+IDR41A,Willis QLD,Rainfields per 6 minutes,N/A,1.2
+IDR41I,Willis QLD,Doppler wind velocity,N/A,1.2
+
 IDR421,Katherine/Tindal NT,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR422,Katherine/Tindal NT,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR423,Katherine/Tindal NT,Local-scale 142km x 142km Composite,N/A,1.2
 IDR42A,Katherine/Tindal NT,Rainfields per 6 minutes,N/A,1.2
 
-IDR421,Giles WA,Broad-scale 512km x 512km Composite,N/A,1.2
-IDR422,Giles WA,Mid-scale 256km x 256km Composite,N/A,1.2
-IDR423,Giles WA,Local-scale 142km x 142km Composite,N/A,1.2
-IDR42A,Giles WA,Rainfields per 6 minutes,N/A,1.2
+IDR441,Giles WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR442,Giles WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR443,Giles WA,Local-scale 142km x 142km Composite,N/A,1.2
+IDR44A,Giles WA,Rainfields per 6 minutes,N/A,1.2
 
 IDR461,Adelaide Sellick's Hill SA,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR462,Adelaide Sellick's Hill SA,Mid-scale 256km x 256km Composite,N/A,1.2
@@ -406,6 +419,16 @@ IDR693,Namoi (Blackjack Mountain) NSW,Local-scale 169km x 169km Composite,N/A,1.
 IDR694,Namoi (Blackjack Mountain) NSW,Local-scale 69km x 69km Composite,N/A,1.2
 IDR69I,Namoi (Blackjack Mountain) NSW,Doppler wind velocity,N/A,1.2
 
+IDR701,Perth (Serpentine) WA,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR702,Perth (Serpentine) WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR703,Perth (Serpentine) WA,Local-scale 142km x 142km Composite,N/A,1.2
+IDR704,Perth (Serpentine) WA,Local-scale 69km x 69km Composite,N/A,1.2
+IDR70A,Perth (Serpentine) WA,Rainfields per 6 minutes,N/A,1.2
+IDR70B,Perth (Serpentine) WA,Rainfields per hour,N/A,1.2
+IDR70C,Perth (Serpentine) WA,Rainfields since 9am,N/A,10
+IDR70D,Perth (Serpentine) WA,Rainfields in 24 hours,N/A,266
+IDR70I,Perth (Serpentine) WA,Doppler wind velocity,N/A,1.2
+
 IDR711,Terrey Hills NSW,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR712,Terrey Hills NSW,Mid-scale 271km x 271km Composite,N/A,1.2
 IDR713,Terrey Hills NSW,Local-scale 171km x 171km Composite,N/A,1.2
@@ -447,6 +470,16 @@ IDR75B,Mount Isa QLD,Rainfields per hour,N/A,1.2
 IDR75C,Mount Isa QLD,Rainfields since 9am,N/A,10
 IDR75D,Mount Isa QLD,Rainfields in 24 hours,N/A,275
 IDR75I,Mount Isa QLD,Doppler wind velocity,N/A,1.2
+
+IDR761,Hobart (Mt Koonya) TAS,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR762,Hobart (Mt Koonya) TAS,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR763,Hobart (Mt Koonya) TAS,Local-scale 142km x 142km Composite,N/A,1.2
+IDR764,Hobart (Mt Koonya) TAS,Local-scale 69km x 69km Composite,N/A,1.2
+IDR76A,Hobart (Mt Koonya) TAS,Rainfields per 6 minutes,N/A,1.2
+IDR76B,Hobart (Mt Koonya) TAS,Rainfields per hour,N/A,1.2
+IDR76C,Hobart (Mt Koonya) TAS,Rainfields since 9am,N/A,10
+IDR76D,Hobart (Mt Koonya) TAS,Rainfields in 24 hours,N/A,266
+IDR76I,Hobart (Mt Koonya) TAS,Doppler wind velocity,N/A,1.2
 
 IDR771,Warruwi (Arafura) NT,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR772,Warruwi (Arafura) NT,Mid-scale 277km x 277km Composite,N/A,1.2
