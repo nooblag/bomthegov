@@ -6,7 +6,7 @@
 
 ## set up environment
   this_name='bomthegov'
-  this_version='0.1.1'
+  this_version='0.1.2'
   this_name_and_version="${this_name} - Version ${this_version}"
   this_name_and_version_and_author="${this_name_and_version} - by @nooblag"
   fullpath_and_filename="$(readlink --canonicalize "${0}")"
