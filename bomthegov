@@ -166,6 +166,7 @@ init() {
   # set a trap to ensure garbage collection from now on
   trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
   # set a trap to ensure cursor is reset if interrupted by user and everything stops
+  # also echo a few chars to empty the space if interrupted while spinner running
   # final errexit will also trip garbage collection EXIT trap above
   trap 'tput cnorm && echo "   " && exit 6' SIGINT
 
