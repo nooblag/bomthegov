@@ -1038,7 +1038,7 @@ handle_reset_cleanup() {
 
 handle_update() {
   # ensure we're on the 'main' branch
-  git checkout 'unstable' --quiet
+  git checkout 'releases' --quiet
   # quietly ensure we're at the last remote commit, to overwrite any local changes
   git reset --hard origin --quiet
   # pull latest code from remote
