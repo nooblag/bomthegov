@@ -209,7 +209,7 @@ display_help() {
 	  update        Download and apply latest version of ${this_name}.
 	  debug         Turn on/off code debug logging.
 	  version       Display version information.
-	  help          Display detailed help about bomthegov.
+	  help          Display detailed help about ${this_name}.
 
 	For example:
 	  'bash ${0} satellite'
@@ -803,10 +803,21 @@ handle_timelapse_images() {
 }
 
 handle_reset_cleanup() {
-  printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder)."
+  printf '\n%s\n' "This will delete *everything* (except rendered timelapses in /timelapse folder),"
+  printf '%s\n\n' "and restore ${this_name} to a clean slate."
   if handle_question "Are you sure you want to continue?"; then
-    # yes, wipe out
-    rm --force --recursive "${working_directory}/images" && printf '%s\n\n' "Cleanup successful."
+    # switch to parent folder
+    cd "${working_directory}" || exit 2
+    # wipe out image storage, also record any output to xtrace log on stderr
+    rm --force --recursive --verbose images 1>&2
+    # clear old debugging logs
+    rm --force --verbose xtrace.log.1 1>&2
+    # clean the git reference log and run aggressive garbage collection and repacking compression
+    git reflog expire --all --expire=now 1>&2
+    git gc --force --aggressive --prune=now 1>&2
+    # also clean out any stray files in the local repo directory
+    git clean --force 1>&2
+    printf '\n%s\n\n' "Cleanup completed."
   else
     printf '%s\n\n' "Stopping."
   fi
@@ -823,7 +834,7 @@ handle_update() {
     # quietly rebase to integrate and resync local to the remote branch
     # use `--force-rebase` to replay all commits, overwriting any local changes and sync to remote
     # if that goes well, clean out any stray files in the local repo directory
-    git rebase --force-rebase --quiet && git clean --force
+    git rebase --force-rebase --quiet && git clean --force 1>&2
   else
     # problem encountered pulling code
     printf '%s\n' "Updating ${0} failed."
