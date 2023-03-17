@@ -351,7 +351,7 @@ display_flock_error() {
   # 5 is set explicitly on the `flock` line with --conflict-exit-code 5
   # so if we encounter exit code '5' meaning `flock` conflict, display an error message, otherwise fail and stop silently
   if [[ ${1} -eq 5 ]]; then
-    printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
+    >&2 printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
   fi
   # now stop with whatever exit code we encountered
   exit "${1}"
