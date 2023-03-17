@@ -871,7 +871,7 @@ download_satellite_images() {
     # now actually do the fetching
     flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
       2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-      ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
+      ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error ${?}
   else
     # sleep another random moment if we're running as a cronjob, before doing a bulk fetch
     handle_cron_sleep
@@ -887,12 +887,12 @@ download_satellite_images() {
       # now do the fetching
       flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
         2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --wait=5 --random-wait --reject=tmp \
-        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error ${?}
     else
       # interactively running, so fetch at a pace that isn't slowed down
       flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
         2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error ${?}
     fi
   fi
   # completed successfully, stop timer and display total runtime
@@ -945,7 +945,7 @@ download_radar_images() {
     printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
     flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
       2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
+      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error ${?}
   else
     # download all images
     # filename pattern on bom server is ID.T.YYYYMMDDHHMM, png file extension
@@ -953,7 +953,7 @@ download_radar_images() {
     # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
     flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
       2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
+      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error ${?}
   fi
 
 
@@ -1074,7 +1074,7 @@ make_timelapse() {
         # ensure we are converting to jpegs by removing current filename's extension and substituting .jpg using parameter expansion
         # also do `convert` quietly to avoid any warning messages that we might encounter about tif layers that are now irrelevant
         # capture the exit code of `convert` into its prepared array for success checking later
-        convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
+        convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
           # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
           # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
           # use the served file metadata parsed through `date` to make our timestamp
@@ -1082,7 +1082,7 @@ make_timelapse() {
           if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
             convert "${scratch}/${current_filename%.*}.jpg" \
               -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --utc --reference "${current_filename}")" \
-              -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
+              -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
           fi
         # advance the progress meter
         ((count++))
@@ -1116,7 +1116,7 @@ make_timelapse() {
           convert -quiet \
             "${legend}" \
             "layers/*.background.png" \
-            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
+            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
           # advance the progress meter
           ((count++))
           # return cursor to the start of the line
@@ -1136,7 +1136,7 @@ make_timelapse() {
             "layers/*.topography.png" \
             "layers/*.locations.png" \
             "layers/*.range.png" \
-            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
+            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
           ((count++))
           printf '\r'
         done
@@ -1175,7 +1175,7 @@ make_timelapse() {
       # capture the exit code of `ffmpeg` into the prepared array for success checking later
       # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
       # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-      ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
+      ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
     elif [[ "${context}" == 'radar' ]]; then
@@ -1183,7 +1183,7 @@ make_timelapse() {
       # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
       # generate timestamp based on first and last collected frames
       # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-      ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
+      ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=(${?})
     fi
 
   # test if all `ffmpeg` iterations were successful
