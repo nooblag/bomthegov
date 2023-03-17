@@ -518,14 +518,18 @@ get_radar_list() {
 
 get_timelapse_list() {
   # find directories in image storage that have content in them and generate a list of what paths might be usable
+  # first, clean any stray .listing files found anywhere that were not cleaned up by `wget` for any reason
+  # without this cleanup we get false-positives for IDs that "are ready" but actually have no content in them
+  find "${working_directory}/images" -iname '.listing' -delete
+  # now build the list of image sets that are actually ready
   # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
   find "${working_directory}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
   if [[ -s image-paths.list ]]; then
     # file above contains our paths, but now also make a pretty list for displaying
     # traverse the list and clean off the paths from each ID
-    while read -r file; do
+    while read -r path; do
       # pattern match off everything until after last slash with parameter expansion and build new list
-      echo "${file##*/}" >> timelapse-IDs.list
+      echo "${path##*/}" >> timelapse-IDs.list
     done < image-paths.list
     merge_lists "${working_directory}/.data/desc.csv" 'timelapse-IDs.list' prettify > timelapse
   else
@@ -1029,7 +1033,8 @@ make_timelapse() {
   # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
   # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
   # also we don't need quoting in the array because we want things to intentionally wordsplit
-  files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.*))
+  # globbing pattern here should return files with 3 letter file extensions we expect, like .jpg or .png for example
+  files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.???))
   # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
   # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
   # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here, unless we use messy exec?)
