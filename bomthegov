@@ -75,7 +75,6 @@ fi
     # exit_6='interrupted'
     # exit_7='nothing to do'
 
-
 ## bundled files check
 required_files=(
   "${working_directory}/.etc/merge-lists.awk"
@@ -93,10 +92,10 @@ done
 # if $failed array contains something, report what files are missing and what the user can do to fix
 # but only when not running 'update' (to fix the problem of missing files)
 if [[ "${#failed[@]}" -ne 0 ]] && [[ "${1}" != 'update' ]]; then
-  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
+  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs:"
   # iterate over each missing program in 'failed' array
   for file in "${failed[@]}"; do
-    printf '%s %s %s %s\n' "Missing:" "$(tput setaf 3)" "${file}" "$(tput sgr0)"
+    printf '  %s %s %s\n' "$(tput setaf 3)" "${file}" "$(tput sgr0)"
   done
   # stop here and exit with error code
   printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
@@ -1209,6 +1208,8 @@ make_timelapse() {
   # open the timelapse video file in the user's preferred application
   ##xdg-open "${timelapse_file}"
 }
+
+
 
 ## runtime
 
