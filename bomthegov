@@ -54,7 +54,7 @@ fi
     # set up a 'global' prompt to use everywhere, including in help docs
     less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
     # set up `less` to use custom prompt and mouse, etc
-    export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
+    export LESS="--clear-screen --ignore-case --mouse --prompt=${less_prompt}"
     # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
     export LESSSECURE=1
 
@@ -209,7 +209,7 @@ display_help() {
 	  update        Download and apply latest version of ${this_name}.
 	  debug         Turn on/off code debug logging.
 	  version       Display version information.
-	  help          Display this help message.
+	  help          Display detailed help about bomthegov.
 
 	For example:
 	  'bash ${0} satellite'
@@ -225,8 +225,9 @@ display_satellite_help() {
 
 	Available options:
 	  list          Fetch a list of available satellite IDs.
+	  search        Same as above, but display the list of available IDs
+	                with the ability to search and scroll the list.
 	  <id>          Start collecting images of <id> satellite.
-
 	  <id> <HH:MM>  Collect a specific 24hr time from <id> satellite images.
 
 	                Time format is HH:MM in UTC.
@@ -252,9 +253,9 @@ display_satellite_help() {
 	                capture no images. You can run the 'list' option from
 	                above to get data on each satellite's DelT.
 
-	  help          Display this help message.
+	  help          Display detailed help about dealing with satellites.
 
-	For example:
+	Example:
 	  'bash ${0} satellite IDE00435'
 	will start collecting images from the Himawari-8 satellite.
 
@@ -268,8 +269,9 @@ display_radar_help() {
 
 	Available options:
 	  list          Fetch a list of available radar IDs.
+	  search        Same as above, but display the list of available IDs
+	                with the ability to search and scroll the list.
 	  <id>          Start collecting images of <id> radar.
-
 	  <id> <HH:MM>  Collect a specific 24hr time from <id> radar images
 
 	                Time format is HH:MM in UTC. So for example, a value of
@@ -294,9 +296,10 @@ display_radar_help() {
 	                images. You can run the 'list' option from above to get
 	                data on each radar's DelT.
 
-	  help          Display this help message.
+	  help          Display detailed help about dealing with radar images.
 
-	For example:
+
+	Example:
 	  'bash ${0} radar IDR421'
 	will start collecting images from the Giles WA rain radar.
 
@@ -309,9 +312,9 @@ display_timelapse_help() {
 	Usage: bash ${0} timelapse <option>
 
 	Available options:
-	  list          Display a list of collected image sets.
+	  list          Display a list of collected image sets, ready for timelapsing.
 	  <id>          Make a timelapse video for a specific radar or satellite ID.
-	  help          Display this help message.
+	  help          Display detailed help about making timelapse videos.
 
 	end_cat
 }
@@ -322,7 +325,7 @@ display_debug_help() {
 	Usage: bash ${0} debug <option>
 
 	Available options:
-	  on            Turn on code debugging log (default). The log is saved in .data folder.
+	  on            Turn on code debugging log (default).
 	  off           Turn off logging and erase any existing logs.
 
 	end_cat
@@ -451,7 +454,7 @@ display_dialog() {
     # so for the BOM ID, get the first part of the line by "deleting the longest possible match after a space" with '%% *'
     # for the description, trim the BOM ID from the line and get everything after it with '#* '
     # then trim it again from the start, removing trailing whitespace by swapping %, #, and * for the end spaces
-    # nested perameter expansion to do it in a one-liner
+    # nested parameter expansion to do it in a one-liner
     while read -r line; do
       id="${line%% *}"
       description="${line#* }"
@@ -661,6 +664,22 @@ handle_satellite_images() {
       fi
     ;;
 
+    'search')
+      init
+      printf '%s' "Fetching satellite list... "
+      # run the get_satellite_list function with a spinner while we wait for it to complete
+      if handle_spinner get_satellite_list; then
+        # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
+        # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
+        printf '\r%s\r' "                           "
+      else
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
+      # display the prettified list with `less` and the ability to search and scroll, etc
+      less satellites
+    ;;
+
     'help')
       # pretty display file from bundled help docs
       display_verbose_help "${working_directory}/docs/satellite.md"
@@ -702,6 +721,21 @@ handle_radar_images() {
         id="${choice}"
         download_radar_images "${@}"
       fi
+    ;;
+
+    'search')
+      init
+      printf '%s' "Fetching radar list... "
+      if handle_spinner get_radar_list; then
+        # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
+        # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
+        printf '\r%s\r' "                           "
+      else
+        printf '%s\n' 'failed. Is the Internet connection up?'
+        exit 4
+      fi
+      # display the prettified list with `less` and the ability to search and scroll, etc
+      less radars
     ;;
 
     'help')
@@ -787,7 +821,7 @@ handle_update() {
   # redirect `git pull` output to stderr wholesale so the update changes/response gets logged as part of xtrace
   if git pull --force 1>&2; then
     # quietly rebase to integrate and resync local to the remote branch
-    # use `--force-rebase` to replay all commits, ovewriting any local changes and sync to remote
+    # use `--force-rebase` to replay all commits, overwriting any local changes and sync to remote
     # if that goes well, clean out any stray files in the local repo directory
     git rebase --force-rebase --quiet && git clean --force
   else
@@ -813,7 +847,7 @@ handle_debugging() {
     ;;
 
     'off')
-      # turn off debuging and erase any existing logs
+      # turn off debugging and erase any existing logs
       printf '\n%s\n' "This will turn off debug logging and delete existing logs."
       if handle_question "Are you sure you want to continue?"; then
         # yes, wipe the logs and turn off debugging
@@ -1068,7 +1102,7 @@ make_timelapse() {
       # documentation at: https://imagemagick.org/script/resources.php
 
       # now actually do the conversion
-      # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+      # hide the cursor while displaying progress, as on some systems it "jumps everywhere" during the loop
       tput civis
       for file in "${files[@]}"; do
         printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
