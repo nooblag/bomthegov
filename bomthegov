@@ -4,6 +4,39 @@
 # fetch radar and satellite images from bom.gov.au and build timelapse videos from collected data
 
 
+## os check
+# this script currently assumes a debian-based system, so quietly check this system is supported before doing anything further
+# use -v to do verbose binaries search, -p to use default value(s) for PATH
+if ! command -vp dpkg > /dev/null 2>&1; then
+  printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
+  printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short 2> /dev/null || uname)"
+  exit 1
+fi
+
+
+## software dependencies check
+# `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
+dependencies=(git gawk wget curl imagemagick ffmpeg)
+for package in "${dependencies[@]}"; do
+  # quietly check with package manager if required software is installed
+  dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
+done
+# if $failed array contains something, then report what is missing
+if [[ "${#failed[@]}" -ne 0 ]]; then
+  printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
+  # use `tput` to set the colour
+  printf '%s%s' "sudo apt install" "$(tput setaf 3)"
+  # iterate over each missing program in 'failed' array
+  for package in "${failed[@]}"; do
+    printf ' %s' "${package}"
+  done
+  # reset colour
+  printf '%s\n\n' "$(tput sgr0)"
+  # stop here and exit with error code 1
+  exit 1
+fi
+
+
 ## set up environment
   this_name='bomthegov'
   this_version='0.1.2'
@@ -16,19 +49,61 @@
   # full path and file name: ${fullpath_and_filename}
   # full path only: ${working_directory}
 
-# references for mapping exit codes
-  # exit_1='software or file dependency fail'
-  # exit_2='problem working with paths'
-  # exit_3='failure related to user input'
-  # exit_4='failure fetching remote data or networking error'
-  # exit_5='file lock error'
-  # exit_6='interrupted'
+  # export some variables to setup specific environments for dependencies
 
+    ## less
+    # set up a 'global' prompt to use everywhere, including in help docs
+    less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
+    # set up `less` to use custom prompt and mouse, etc
+    export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
+    # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
+    export LESSSECURE=1
+
+    ## imagemagick
+    # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
+    export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
+
+  # references for mapping exit codes
+    # exit_1='software or file dependency fail'
+    # exit_2='problem working with paths'
+    # exit_3='failure related to user input'
+    # exit_4='failure fetching remote data or networking error'
+    # exit_5='file lock error'
+    # exit_6='interrupted'
+
+
+## bundled files check
+required_files=(
+  "${working_directory}/.etc/merge-lists.awk"
+  "${working_directory}/.data/desc.csv"
+  "${working_directory}/.config/ImageMagick/policy.xml"
+  "${working_directory}/docs/radar.md"
+  "${working_directory}/docs/readme.md"
+  "${working_directory}/docs/satellite.md"
+  "${working_directory}/docs/timelapse.md"
+)
+for file in "${required_files[@]}"; do
+  [[ ! -s "${file}" ]] && failed+=("${file}")
+done
+# if $failed array contains something, report what files are missing and what the user can do to fix
+# but only when not running 'update' (to fix the problem of missing files)
+if [[ "${#failed[@]}" -ne 0 ]] && [[ "${1}" != 'update' ]]; then
+  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
+  # iterate over each missing program in 'failed' array
+  for file in "${failed[@]}"; do
+    printf '%s %s %s %s\n' "Missing:" "$(tput setaf 3)" "${file}" "$(tput sgr0)"
+  done
+  # stop here and exit with error code
+  printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
+  exit 1
+fi
+
+
+## set up debug logging
 # first determine if script is running interactively or as a scheduled job by checking for an interactive tty
 # if we get something other than zero, the display (fd0) is not open = this is running as an automated job
 ! [[ -t 0 ]] && cron=1 && process='no-tty: '
-
-# setup debug logging
+# set log file path and name
 logfile="${working_directory}/.xtrace.log"
   # if the debug config setting file exists, switch on logging
   if [[ -e "${working_directory}/.config/debug" ]]; then
@@ -79,78 +154,6 @@ logfile="${working_directory}/.xtrace.log"
     set -o xtrace
   fi
 
-# this script assumes a debian-based system, so quietly check this system is supported before doing anything further
-# use -v to do verbose binaries search, -p to use default value(s) for PATH
-if ! command -vp dpkg > /dev/null 2>&1; then
-  printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
-  printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short)"
-  exit 1
-fi
-
-# check if the following dependent software packages are ready to go
-# `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
-dependencies=(git gawk wget curl imagemagick ffmpeg)
-for package in "${dependencies[@]}"; do
-  # quietly check with package manager if required software is installed
-  dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
-done
-# if $failed array contains something, then report what is missing
-if [[ "${#failed[@]}" -ne 0 ]]; then
-  printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
-  # use `tput` to set the colour
-  printf '%s%s' "sudo apt install" "$(tput setaf 3)"
-  # iterate over each missing program in 'failed' array
-  for package in "${failed[@]}"; do
-    printf ' %s' "${package}"
-  done
-  # reset colour
-  printf '%s\n\n' "$(tput sgr0)"
-  # stop here and exit with error code 1
-  exit 1
-fi
-
-# check if the following dependent bundled files exist and have contents
-required_files=(
-  "${working_directory}/.etc/merge-lists.awk"
-  "${working_directory}/.data/desc.csv"
-  "${working_directory}/.config/ImageMagick/policy.xml"
-  "${working_directory}/docs/radar.md"
-  "${working_directory}/docs/readme.md"
-  "${working_directory}/docs/satellite.md"
-  "${working_directory}/docs/timelapse.md"
-)
-for file in "${required_files[@]}"; do
-  [[ ! -s "${file}" ]] && failed+=("${file}")
-done
-# if $failed array contains something, report what files are missing and what the user can do to fix
-# but only when not running 'update' (to fix the problem of missing files)
-if [[ "${#failed[@]}" -ne 0 ]] && [[ "${1}" != 'update' ]]; then
-  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs."
-  # iterate over each missing program in 'failed' array
-  for file in "${failed[@]}"; do
-    printf '%s %s %s %s\n' "Missing:" "$(tput setaf 3)" "${file}" "$(tput sgr0)"
-  done
-  # stop here and exit with error code
-  printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
-  exit 1
-fi
-
-
-
-## setenv
-# export some variables to setup specific environments for dependencies
-
-  # [less]
-  # set up a 'global' prompt to use everywhere, including in help docs
-  less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
-  # set up `less` to use custom prompt and mouse, etc
-  export LESS="--quit-if-one-screen --ignore-case --mouse --prompt=${less_prompt}"
-  # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
-  export LESSSECURE=1
-
-  # [imagemagick]
-  # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
-  export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
 
 
 
