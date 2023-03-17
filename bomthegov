@@ -50,7 +50,6 @@ fi
   # full path only: ${working_directory}
 
   # export some variables to setup specific environments for dependencies
-
     ## less
     # set up a 'global' prompt to use everywhere, including in help docs
     less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
@@ -63,6 +62,10 @@ fi
     # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
     export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
 
+    ## dialog
+    # set location of config file to use custom colours
+    export DIALOGRC="${working_directory}/.config/dialog.cfg"
+
   # references for mapping exit codes
     # exit_1='software or file dependency fail'
     # exit_2='problem working with paths'
@@ -70,6 +73,7 @@ fi
     # exit_4='failure fetching remote data or networking error'
     # exit_5='file lock error'
     # exit_6='interrupted'
+    # exit_7='nothing to do'
 
 
 ## bundled files check
@@ -77,6 +81,7 @@ required_files=(
   "${working_directory}/.etc/merge-lists.awk"
   "${working_directory}/.data/desc.csv"
   "${working_directory}/.config/ImageMagick/policy.xml"
+  "${working_directory}/.config/dialog.cfg"
   "${working_directory}/docs/radar.md"
   "${working_directory}/docs/readme.md"
   "${working_directory}/docs/satellite.md"
@@ -424,6 +429,65 @@ display_pretty_timer(){
   printf '%s\n' "${result}"
 }
 
+display_dialog() {
+  # this function takes the contents of a file, passed to it in $1, and displays that data as a menu in dialog box
+  # the title of the dialog box is expected in $2
+  # ok button label is expected in $3
+  # menu description text is expected in $4
+  # the selected item is put into $choice
+
+  if [[ -s "${1}" ]]; then
+    # read the first line of the data file to get the headings
+    read -r headings < "${1}"
+    # now put the rest of the data file into an array, using `tail` to skip the first line (headings) using process substitution
+    # `--lines +2` means start at second line
+    options=()
+    # dialog expects 2 parts for a menu entry: an id, and it's 'description' arranged in a staggered structure with line breaks
+    # so like:
+      # array[1]=id1
+      # array[2]='first option description'
+      # array[3]=id2
+      # array[4]='second option description'
+    # and so on
+    # so for the BOM ID, get the first part of the line by "deleting the longest possible match after a space" with '%% *'
+    # for the description, trim the BOM ID from the line and get everything after it with '#* '
+    # then trim it again from the start, removing trailing whitespace by swapping %, #, and * for the end spaces
+    # nested perameter expansion to do it in a one-liner
+    while read -r line; do
+      id="${line%% *}"
+      description="${line#* }"
+      options+=("${id}" "${description#"${description%%[![:space:]]*}"}")
+    done < <(tail --lines +2 "${1}")
+  fi
+
+  # stop here if building a list failed
+  if [[ -z ${headings} || -z "${options[*]}" ]]; then
+    >&2 printf '%s\n' "failed. Couldn't build menu."
+    exit 1
+  fi
+
+  # dialog window settings
+  height=40
+  width="$((${#headings} + 6))" # length of heading, plus 6 characters = the borders of the box on each side
+  choice_height=1
+  menu="\n${4}\n\n${headings}"
+
+  # hide the cursor
+  tput civis
+
+  # breakout `dialog` from the choice parameter by redirecting stdout and stderr to the current tty so we can actually see it
+  choice=$(
+    dialog --clear --erase-on-exit --output-fd 1 \
+           --backtitle "${this_name_and_version_and_author}" \
+           --title "${2}" \
+           --cursor-off-label --ok-label " ${3} " \
+           --menu "${menu}" ${height} ${width} ${choice_height} "${options[@]}"
+  )
+
+  # reset cursor
+  tput cnorm
+}
+
 get_satellite_list() {
   # dump entire satellite directory
   # use 'spidering' to not download anything and just get .listing file of ftp directory
@@ -432,33 +496,43 @@ get_satellite_list() {
   # pattern match the list to return only satellite IDs (IDE), and only match IDs that contain TIF or JPG files
   # then "sub(regexp, replacement, target)" to strip the rest of the line away (by replacing it with nothing), to "print only the ID part"
   gawk '/IDE.*\.tif|\.jpg/ { sub("\\..*", "", $NF); print $NF }' .listing | sort --unique > satellite-IDs.list
+  # if we've got a list from the server, process it
+  if [[ -s satellite-IDs.list ]]; then
+    # list file from server contains something so now merge it with bundled csv description data for display later
+    merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify > satellites
+  else
+    # file is empty, which means fetching from server failed, we have nothing to work with, so return code 4 for 'network error'
+    return 4
+  fi
 }
 
 get_radar_list() {
   wget --quiet --spider --no-remove-listing --timeout=30 --tries=30 --random-wait 'ftp://ftp.bom.gov.au/anon/gen/radar/' || return 4
   # pattern match radar IDs, only matching IDs that contain PNG files
   gawk '/IDR.*\.png/ { sub("\\..*", "", $NF); print $NF }' .listing | sort --unique > radar-IDs.list
+  if [[ -s radar-IDs.list ]]; then
+    merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify > radars
+  else
+    return 4
+  fi
 }
 
 get_timelapse_list() {
   # find directories in image storage that have content in them and generate a list of what paths might be usable
   # exclude hidden directories by excluding paths that start with dot, i.e. -not -path '*/.*'
   find "${working_directory}/images" -mindepth 2 -type d -not -path '*/.*' -not -name 'layers' -not -name 'legend' -not -empty -print | sort --unique > image-paths.list
-  # if list file size is zero, then we have nothing to work with
-  if ! [[ -s image-paths.list ]]; then
-    printf "%s\n\n" "No image sets found. Try collecting some images?"
-    printf '%s\n\n' "If you need help, try: 'bash ${0} help'"
-    exit 3
+  if [[ -s image-paths.list ]]; then
+    # file above contains our paths, but now also make a pretty list for displaying
+    # traverse the list and clean off the paths from each ID
+    while read -r file; do
+      # pattern match off everything until after last slash with parameter expansion and build new list
+      echo "${file##*/}" >> timelapse-IDs.list
+    done < image-paths.list
+    merge_lists "${working_directory}/.data/desc.csv" 'timelapse-IDs.list' prettify > timelapse
+  else
+    # we have nothing to work with so return code 7 for 'nothing to do'
+    return 7
   fi
-  # file above contains our paths, but now also make a pretty list for displaying
-  # traverse the list and clean off the paths from each ID
-  while read -r file; do
-    # pattern match off everything until after last slash with parameter expansion and build new list
-    echo "${file##*/}" >> timelapse-IDs.list
-  done < image-paths.list
-  # pretty display
-  printf '\n\n%s\n\n' "The following IDs seem to have possible collected image data ready to timelapse:"
-  merge_lists "${working_directory}/.data/desc.csv" 'timelapse-IDs.list' prettify && printf '\n'
 }
 
 merge_lists() {
@@ -564,16 +638,24 @@ handle_satellite_images() {
       # say what we're doing
       printf '%s' "Fetching satellite list... "
       # run the get_satellite_list function with a spinner while we wait for it to complete
-      if handle_spinner get_satellite_list; then
-        # getting list was a success, so pop in some pretty empty space
-        printf '\n\n'
-      else
+      if ! handle_spinner get_satellite_list; then
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
-      # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      merge_lists "${working_directory}/.data/desc.csv" 'satellite-IDs.list' prettify | less
-      printf '\n'
+      # getting list was successful, there is now a file called 'satellites' that contains list of available IDs, prettified with merged bundled csv data
+      # display a pretty dialog box with that list data, and the user can also choose an ID to fetch directly from there, captured in $choice
+      # the list file is expected in $1
+      # the title of the dialog box is expected in $2
+      # ok button label is expected in $3
+      # menu description text is expected in $4
+      display_dialog satellites "List of Available Satellites" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
+      if [[ -n "${choice}" ]]; then
+        # user has selected an id from the list to fetch
+        # set $id to that, in the same method as what would happen with command-line input through handle_user_input
+        id="${choice}"
+        # now that we have an id set, attempt to actually download those images, while also passing original command line args (to handle time globbing for example)
+        download_satellite_images "${@}"
+      fi
     ;;
 
     'help')
@@ -589,77 +671,13 @@ handle_satellite_images() {
     *)
       # doing work with files, so set up temporary workspace
       init
-      # passed variable user input here
-      # run sanitation and formatting tests
-      handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
-      # user input checks passed
-      # set stopwatch to keep track of total run time for fetching, starting from now
-      timer_start=$(date +%s)
-      # introduce a large randomised wait before proceeding if this instance is running as a cron job
-      handle_cron_sleep
-      # now attempt to fetch what looks like a valid satellite ID
-      printf '\n%s' "Attempting to fetch ${id} satellite images: "
-      # ensure we have recent list first
-      if ! handle_spinner get_satellite_list; then
-        printf '%s\n' 'failed. Is the Internet connection up?'
-        exit 4
-      fi
-      # is the ID on the list?
-      if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
-        printf '%s\n' 'failed.'
-        printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
-        printf '%s\n\n' "Try 'bash ${0} satellite list' to display a list of available IDs."
-        exit 3
-      else
-        # got the list and the ID exists, everything fine, add some pretty empty space
-        printf '\n\n'
-      fi
-
-      # finished user input tests, so we have something to work with
-      # ensure target paths exist and prepare to fetch
-      mkdir --parents "${working_directory}/images/satellite/${id}" || exit 2
-      cd "${working_directory}/images/satellite/${id}/" || exit 2
-
-      # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
-      if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
-        # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
-        # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
-        # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
-        # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
-        # remove colon from globbing arg user input by using '//' parameter expansion
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
-        # now actually do the fetching
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
-          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-          ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
-      else
-        # sleep another random moment if we're running as a cronjob, before doing a bulk fetch
-        handle_cron_sleep
-        # download all images that start with ID using wildcard glob and 3x file extension characters
-        # filename pattern on bom server is ID.YYYYMMDDHHMM, so match ID.[digits] only (to not match 'ID.radar' files for IDE00135 for instance)
-        # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        # determine first if this is running as a cronjob, because if so, also introduce randomised wait times between each file here for a bulk fetch
-        if [[ "${cron}" -eq 1 ]]; then
-          # running as cron, introduce a randomised 0.5 to ~5.5 second wait between each file
-          # satellite images are quite large, so bulk transfers of whole image sets before each "delete time" at remote end (DelT) are the most resource intensive for bom
-          printf '%s\n\n' "*** Running as a cronjob, so going slow ***"
-          # now do the fetching
-          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
-            2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --wait=5 --random-wait --reject=tmp \
-            ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
-        else
-          # interactively running, so fetch at a pace that isn't slowed down
-          flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
-            2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-            ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
-        fi
-      fi
-      # completed successfully, stop timer and display total runtime
-      timer_stop=$(date +%s)
-      printf '\n%s\n\n' 'Completed successfully.'
-      printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+      # passed variable user input here so run sanitation and formatting tests
+      # $1 here is the context from the command line, i.e. 'satellite'
+      # $2 is unsanitised user input from command line to undergo regex checks
+      handle_user_input "${1}" "${2}"
+      # user input checks passed so attempt to actually download those images
+      # also pass original command line args to handle time globbing etc
+      download_satellite_images "${@}"
     ;;
   esac
 }
@@ -667,144 +685,34 @@ handle_satellite_images() {
 handle_radar_images() {
   case "${2}" in
     'list')
-      # doing work with files, so set up temporary workspace
       init
-      # say what we're doing
       printf '%s' "Fetching radar list... "
-      # run the get_radar_list function with a spinner while we wait for it to complete
       if handle_spinner get_radar_list; then
-        # getting list was a success, so pop in some pretty empty space
-        printf '\n\n'
+        printf '%s\n' "done."
+        printf '%s\n' "Preparing list dialog window... "
       else
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
-      # pretty-display the data in nice columns, and pipe to `less` to handle scrolling
-      merge_lists "${working_directory}/.data/desc.csv" 'radar-IDs.list' prettify | less
-      printf '\n'
+      display_dialog radars "List of Available Radars" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
+      if [[ -n "${choice}" ]]; then
+        id="${choice}"
+        download_radar_images "${@}"
+      fi
     ;;
 
     'help')
-      # pretty display file from bundled help docs
       display_verbose_help "${working_directory}/docs/radar.md"
     ;;
 
     '')
-      # no option given, so display quick general help
       display_radar_help
     ;;
 
     *)
-      # doing work with files, so set up temporary workspace
       init
-      # passed variable user input here
-      # run sanitation and formatting tests
-      handle_user_input "${1}" "${2}" # $2 being unsanitised user input from command line
-      # user input checks passed
-      # set stopwatch to keep track of total run time for fetching, starting from now
-      timer_start=$(date +%s)
-      # introduce a large randomised wait before proceeding if this instance is running as a cron job
-      handle_cron_sleep
-      # now attempt to fetch what looks like a valid radar ID
-      printf '\n%s' "Attempting to fetch ${id} radar data: "
-      # ensure we have recent list first
-      if ! handle_spinner get_radar_list; then
-        printf '%s\n' 'failed. Is the Internet connection up?'
-        exit 4
-      fi
-      # is the ID on the list?
-      if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
-        printf 'failed.\n'
-        printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
-        printf '%s\n\n' "Try 'bash ${0} radar list' to display a list of available IDs."
-        exit 3
-      else
-        # everything fine, so pop in some pretty empty space
-        printf '\n\n'
-      fi
-
-      # looking good, ensure storage is available
-      mkdir --parents "${working_directory}/images/radar/${id}" || exit 2
-      cd "${working_directory}/images/radar/${id}/" || exit 2
-
-      # get the radar images
-      # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
-      if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
-        # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
-        # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
-        # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
-        # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
-        # remove colon from globbing arg user input by using '//' parameter expansion
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
-          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-          ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
-      else
-        # download all images
-        # filename pattern on bom server is ID.T.YYYYMMDDHHMM, png file extension
-        # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 2 hours, for example)
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
-          2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
-          ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
-      fi
-
-
-      # get the background image layers if need be
-      printf '\n%s\n' "Getting geographical layers:"
-      mkdir --parents "${working_directory}/images/radar/${id}/layers" || exit 2
-      cd "${working_directory}/images/radar/${id}/layers/" || exit 2
-      # the second last characters of an ID denotes it's location set
-      # so for example in IRD031, 03 = Wollongong NSW, 1=512km composite view, 2=256km, 3=128km, 4=64km
-      #                in IRD03A, 03 = Wollongong NSW, A=rain per 6 minutes, B=per hour, C=since 9am, D=24hrs, I=doppler wind velocity
-      # bom doesn't publish all the layers with their required IDs for A B C D and I sets so we need to do some processing here to get their backgrounds
-      # one assumes this is done to save disk space? but not sure why
-      # bom also doesn't publish background or layering for IDR00004 (the national rainfall radar), which is weird, so handle an exception for that
-      # online it looks like they use the 'IDE00135.radar' satellite image
-      # i.e. http://www.bom.gov.au/products/national_radar_sat.loop.shtml
-      # waaargh, not sure why bom the gov is messy here?
-
-      # so, if dealing with the national rainfall radar (IDR00004)
-      if [[ "${id}" == 'IDR00004' ]]; then
-        # hardcode getting a known static national background image
-        # use the static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
-        # i.e. IDE00035 (note: *35* not *135*)
-        # they don't publish that image in their ftp archive either (wtf?!) so grab it from the website
-        # rename that image to the national rainfall radar ID, so we at least are keeping track of what we're trying to fix
-        # does this seem a bit hacky and disorganised for an agency that runs on data?
-        # also, we have to pretend to be a browser here, since bom discourages web scraping!
-        curl \
-          --output 'IDR00004.background.png' \
-          --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
-          --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
-          --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
-
-      # then if the ID ends in A B C D or I
-      elif [[ "${id}" =~ [A-D|I]$ ]]; then
-        # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
-        # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
-
-      # none of the above exceptions have been met
-      else
-        # don't need to do anything special, so get the ID layers as they're published; phew!
-        # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
-      fi
-
-      # ensure radar image legend layers are available
-      printf '\n%s\n' "Getting graph legends:"
-      mkdir --parents "${working_directory}/images/radar/legend" || exit 2
-      cd "${working_directory}/images/radar/legend" || exit 2
-      # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
-      2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
-
-      # completed successfully, stop timer and display total runtime
-      timer_stop=$(date +%s)
-      printf '\n%s\n\n' 'Completed successfully.'
-      printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+      handle_user_input "${1}" "${2}"
+      download_radar_images "${@}"
     ;;
   esac
 }
@@ -812,219 +720,47 @@ handle_radar_images() {
 handle_timelapse_images() {
   case "${2}" in
     'list')
-      # doing work with files, so set up temporary workspace
       init
-      # get list of image sets that have been collected
-      printf '%s' "Searching for collected images... "
-      get_timelapse_list | less
-      printf '\n'
+      printf '\n%s' "Searching for collected images... "
+      if handle_spinner get_timelapse_list; then
+        printf '%s\n' "done."
+        printf '%s\n' "Preparing list dialog window... "
+      else
+        printf "\r%s\n\n" "No image sets found. Try collecting some images?"
+        printf '%s\n\n' "If you need help, try: 'bash ${0} help'"
+        exit 7
+      fi
+
+      # getting list was successful, there is now a file called 'satellites' that contains list of available IDs, prettified with merged bundled csv data
+      # display a pretty dialog box with that list data, and the user can also choose an ID to fetch directly from there, captured in $choice
+      # the list file is expected in $1
+      # the title of the dialog box is expected in $2
+      # ok button label is expected in $3
+      # menu description text is expected in $4
+      display_dialog timelapse "Image Sets Available to Timelapse" "Timelapse" "Select one of the following IDs to start making a timelapse video from its collected images."
+      if [[ -n "${choice}" ]]; then
+        # user has selected an id from the list to make a timelapse with
+        # set $id to that, in the same method as what would happen with command-line input through handle_user_input
+        id="${choice}"
+        # now test that id in the same way as user input so that regex checks are applied to determine $id_type as make_timelapse needs that
+        handle_user_input "${1}" "${id}"
+        # if those checks pass, we have an id set, attempt to actually make a timelapse video
+        make_timelapse
+      fi
     ;;
 
     'help')
-      # pretty display file from bundled help docs
       display_verbose_help "${working_directory}/docs/timelapse.md"
     ;;
 
     '')
-      # no option given, so display quick general help
       display_timelapse_help
     ;;
 
     *)
-      # doing work with files, so set up temporary workspace
       init
-      # passed variable user input here
-      # run sanitation and formatting tests
-      handle_user_input "${1}" "${2}" # $2 being user input from command line
-      # get resulting context, i.e. if after tests, ID is a radar or a satellite as we need to do different processing for each
-      context="${id_type}"
-
-      # now check to see if we have any collected images for this ID
-      # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
-      # use a subshell so our changes to `shopt` are temporary
-      # `nullglob` setting means patterns that don't match any filenames are simply expanded to **nothing** rather than remaining unexpanded
-      # we need this so no matches return empty space rather than an unglobbed asterisk, i.e. literal *
-      # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
-      # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
-      # also we don't need quoting in the array because we want things to intentionally wordsplit
-      files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.*))
-      # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
-      # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
-      # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here, unless we use messy exec?)
-      # this method of checking is also superior because we reduce processing later by already having matched files ready to go in an array
-      if ! [[ -d "${working_directory}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
-        printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
-        printf '%s\n\n' "Try 'bash ${0} ${context} ${id}' to start collecting images first."
-        exit 3
-      fi
-
-      # switch to the folder now we've checked the user input for it is legit
-      cd "${working_directory}/images/${context}/${id}/" || exit 2
-
-      # ensure we have a scratch storage ready for current conversion to be temporarily saved into
-      scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
-      # set up a counter for 'percentage complete' tracking in next steps
-      count=1
-      # set up arrays to capture exit codes from `convert` and `ffmpeg` during each iteration, as we'll test these later to check if any errors are encountered
-      convert_result=()
-      ffmpeg_result=()
-      # set stopwatch to keep track of total run time for assembling timelapse, starting from now
-      timer_start=$(date +%s)
-
-      # prepare each image as video frames
-        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
-        if [[ "${context}" == 'satellite' ]]; then
-          # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
-          # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
-          # default megapixel limit for imagemagick is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
-          # set MAGICK_CONFIGURE_PATH to import bundled policy.xml settings to from .config folder to explicitly increase width and height limits, etc
-          # documentation at: https://imagemagick.org/script/resources.php
-
-          # now actually do the conversion
-          # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
-          tput civis
-          for file in "${files[@]}"; do
-            printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
-            # get the name of the current file only by stripping off its path
-            current_filename="${file##*/}"
-            # tif files from bom have multiple layers, and if just using filenames, imagemagick splits those layers into multiple files which is unwanted
-            # so use [0] after file name which `convert` interprets as "get the first layer only"
-            # ensure we are converting to jpegs by removing current filename's extension and substituting .jpg using parameter expansion
-            # also do `convert` quietly to avoid any warning messages that we might encounter about tif layers that are now irrelevant
-            # capture the exit code of `convert` into its prepared array for success checking later
-            convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
-              # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
-              # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
-              # use the served file metadata parsed through `date` to make our timestamp
-              # the text passed to `convert` to be created, is in the 'label' argument
-              if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
-                convert "${scratch}/${current_filename%.*}.jpg" \
-                  -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --utc --reference "${current_filename}")" \
-                  -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
-              fi
-            # advance the progress meter
-            ((count++))
-            # return cursor to the start of the line
-            printf '\r'
-          done
-          # restore the cursor
-          tput cnorm
-
-        # if we're making a timelapse of a radar, assemble its layers
-        elif [[ "${context}" == 'radar' ]]; then
-          # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
-          # determine what legend is required first, based on it's ID structure
-            # if ID ends in a number, it's a rainfields data; use legend 0 (rain rate scale, light -> heavy)
-            [[ "${id}" =~ [0-9]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.0.png"
-            # if ID ends in A B C or D then it's a rainfields data; use legend 1 (rainfall in mm)
-            [[ "${id}" =~ [A-D]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.1.png"
-            # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
-            [[ "${id}" =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
-
-          # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
-          # otherwise, it's a radar as "usual" so assemble those layers
-          # such a messy bom
-          if [[ "${id}" == 'IDR00004' ]]; then
-            # the conversion loop should exclude layers that don't exist for national radar
-            # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
-            tput civis
-            for file in "${files[@]}"; do
-              printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
-              # do conversion quietly
-              convert -quiet \
-                "${legend}" \
-                "layers/*.background.png" \
-                "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
-              # advance the progress meter
-              ((count++))
-              # return cursor to the start of the line
-              printf '\r'
-            done
-            # restore the cursor
-            tput cnorm
-          else
-            # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
-            tput civis
-            # a radar as usual, so conversion loop should assemble known/desired layers
-            for file in "${files[@]}"; do
-              printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
-              convert -quiet \
-                "${legend}" \
-                "layers/*.background.png" \
-                "layers/*.topography.png" \
-                "layers/*.locations.png" \
-                "layers/*.range.png" \
-                "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
-              ((count++))
-              printf '\r'
-            done
-            # restore the cursor
-            tput cnorm
-          fi
-        fi
-
-      # if conversion encountered any errors, stop here
-        # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
-        # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
-        # so, only need to check for the existence of '1' anywhere
-        if [[ "${convert_result[*]}" =~ 1 ]]; then
-          printf '\n\n%s\n%s\n\n' "Error(s) occurred during image preparation." "Creating timelapse failed. Stopping."
-          exit 1
-        fi
-
-      # everything fine, so now get the first and last names of files we're timelapsing, for use in a moment to generate label for mp4 file
-      first_file="${files[0]##*/}"
-      last_file="${files[${#files[@]}-1]##*/}" # looks messy because to get last array item, we need total number of keys minus one
-      # determine each file's creation date and time to discern timeframe of capture
-      # utc is also useful as bom/generic weather seems to prefer that for consistency (although, bom not always)
-      timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
-      timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
-      timelapse_file="${working_directory}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
-
-      # ensure directory to store created timelapse exists
-      mkdir --parents "${working_directory}/timelapse" || exit 2
-
-      # now make mp4 video timelapse!
-      printf '\n%s\n' "Making MP4... "
-      # wait a short moment first for disk caching
-      sleep 1
-        # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
-        if [[ "${context}" == 'satellite' ]]; then
-          # capture the exit code of `ffmpeg` into the prepared array for success checking later
-          # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
-          # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-          ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
-
-        # if we're making a timelapse of a radar, we use the assembled png files
-        elif [[ "${context}" == 'radar' ]]; then
-          # `-r 10` means essentially 10fps; 1 frame for radar image per ~5 minutes; so @10fps, 1 second of footage = ~1hr of radar data timelapsed
-          # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
-          # generate timestamp based on first and last collected frames
-          # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-          ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
-        fi
-
-      # test if all `ffmpeg` iterations were successful
-        # use a subshell and set bash's Internal Field Separator to wordsplit the exit codes in ffmpeg_result with a plus sign instead of whitespace
-        # then, parse the expanded array into `bc` with here-string, so the expanded array becomes 'var1+var2+var3' and so on, that `bc` can then sum ;)
-        ffmpeg_success="$(IFS='+'; bc <<< "${ffmpeg_result[*]}")"
-      if [[ "${ffmpeg_success}" -eq 0 ]]; then
-        # after a successful timelapse is made, move the stored images folder to .archive and clean up the remaining folder once that's done
-        # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
-        printf '\n%s\n\n' "Timelapse video for ${id} ${context} successfully created."
-        mkdir --parents "${working_directory}/images/.archive/${context}" || exit 2
-        cd "${working_directory}" || exit 2
-        mv --force "${working_directory}/images/${context}/${id}" "${working_directory}/images/.archive/${context}"
-      else
-        printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
-        exit 1
-      fi
-
-      # encountered no error exit, so stop timer and report how long we've been running
-      timer_stop=$(date +%s)
-      printf '%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
-      # open the timelapse video file in the user's preferred application
-      ##xdg-open "${timelapse_file}"
+      handle_user_input "${1}" "${2}"
+      make_timelapse
     ;;
   esac
 }
@@ -1091,7 +827,388 @@ handle_debugging() {
   esac
 }
 
+download_satellite_images() {
+  # this function handles the actual file transfers for satellite images, expecting an ID in $id
+  # this function is expected to be called inside handle_satellite_images after init has been run to set up temporary storage, etc
+  # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
 
+  # set stopwatch to keep track of total run time for fetching, starting from now
+  timer_start=$(date +%s)
+  # introduce a large randomised wait before proceeding if this instance is running as a cron job
+  handle_cron_sleep
+
+  # attempt to fetch what looks like a valid satellite ID
+  printf '\n%s' "Attempting to fetch ${id} satellite images: "
+  # ensure we have recent list first
+  if ! handle_spinner get_satellite_list; then
+    printf '%s\n' 'failed. Is the Internet connection up?'
+    exit 4
+  fi
+  # is the ID on the list?
+  if ! grep --quiet --fixed-strings "${id}" --line-regexp satellite-IDs.list; then
+    printf '%s\n' 'failed.'
+    printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available satellite image set." "Are you sure the ID is correct?"
+    printf '%s\n\n' "Try 'bash ${0} satellite list' to display a list of available IDs."
+    exit 3
+  else
+    # got the list and the ID exists, everything fine, add some pretty empty space
+    printf '\n\n'
+  fi
+
+  # finished user input tests, so we have something to work with
+  # ensure target paths exist and prepare to fetch
+  mkdir --parents "${working_directory}/images/satellite/${id}" || exit 2
+  cd "${working_directory}/images/satellite/${id}/" || exit 2
+
+  # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
+  if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+    # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
+    # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
+    # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+    # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
+    # remove colon from globbing arg user input by using '//' parameter expansion
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
+    # now actually do the fetching
+    flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
+      2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+      ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*${3//:}.??? || exit 4" || display_flock_error $?
+  else
+    # sleep another random moment if we're running as a cronjob, before doing a bulk fetch
+    handle_cron_sleep
+    # download all images that start with ID using wildcard glob and 3x file extension characters
+    # filename pattern on bom server is ID.YYYYMMDDHHMM, so match ID.[digits] only (to not match 'ID.radar' files for IDE00135 for instance)
+    # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    # determine first if this is running as a cronjob, because if so, also introduce randomised wait times between each file here for a bulk fetch
+    if [[ "${cron}" -eq 1 ]]; then
+      # running as cron, introduce a randomised 0.5 to ~5.5 second wait between each file
+      # satellite images are quite large, so bulk transfers of whole image sets before each "delete time" at remote end (DelT) are the most resource intensive for bom
+      printf '%s\n\n' "*** Running as a cronjob, so going slow ***"
+      # now do the fetching
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
+        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --wait=5 --random-wait --reject=tmp \
+        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+    else
+      # interactively running, so fetch at a pace that isn't slowed down
+      flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/satellite/${id}" --command " \
+        2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+        ftp://ftp.bom.gov.au/anon/gen/gms/${id}.[0-9]*.??? || exit 4" || display_flock_error $?
+    fi
+  fi
+  # completed successfully, stop timer and display total runtime
+  timer_stop=$(date +%s)
+  printf '\n%s\n\n' 'Completed successfully.'
+  printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+}
+
+download_radar_images() {
+  # this function handles the actual file transfers for radar images, expecting an ID in $id
+  # this function is expected to be called inside handle_radar_images after init has been run to set up temporary storage, etc
+  # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
+
+  # set stopwatch to keep track of total run time for fetching, starting from now
+  timer_start=$(date +%s)
+  # introduce a large randomised wait before proceeding if this instance is running as a cron job
+  handle_cron_sleep
+
+  # now attempt to fetch what looks like a valid radar ID
+  printf '\n%s' "Attempting to fetch ${id} radar data: "
+  # ensure we have recent list first
+  if ! handle_spinner get_radar_list; then
+    printf '%s\n' 'failed. Is the Internet connection up?'
+    exit 4
+  fi
+  # is the ID on the list?
+  if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
+    printf 'failed.\n'
+    printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
+    printf '%s\n\n' "Try 'bash ${0} radar list' to display a list of available IDs."
+    exit 3
+  else
+    # everything fine, so pop in some pretty empty space
+    printf '\n\n'
+  fi
+
+  # looking good, ensure storage is available
+  mkdir --parents "${working_directory}/images/radar/${id}" || exit 2
+  cd "${working_directory}/images/radar/${id}/" || exit 2
+
+  # get the radar images
+  # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
+  if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+    # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
+    # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
+    # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
+    # reject any "temporary" files, as in this context, these are images currently being written to disk at the origin and are incomplete
+    # remove colon from globbing arg user input by using '//' parameter expansion
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    printf '%s %s %s\n\n' "Glob narrowed to select images from" "${3}" "UTC only."
+    flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
+      2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*${3//:}.png || exit 4" || display_flock_error $?
+  else
+    # download all images
+    # filename pattern on bom server is ID.T.YYYYMMDDHHMM, png file extension
+    # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 2 hours, for example)
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    flock --conflict-exit-code 5 --nonblock --exclusive --no-fork "${working_directory}/images/radar/${id}" --command " \
+      2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait --reject=tmp \
+      ftp://ftp.bom.gov.au/anon/gen/radar/${id}.T.[0-9]*.png || exit 4" || display_flock_error $?
+  fi
+
+
+  # get the background image layers if need be
+  printf '\n%s\n' "Getting geographical layers:"
+  mkdir --parents "${working_directory}/images/radar/${id}/layers" || exit 2
+  cd "${working_directory}/images/radar/${id}/layers/" || exit 2
+  # the second last characters of an ID denotes it's location set
+  # so for example in IRD031, 03 = Wollongong NSW, 1=512km composite view, 2=256km, 3=128km, 4=64km
+  #                in IRD03A, 03 = Wollongong NSW, A=rain per 6 minutes, B=per hour, C=since 9am, D=24hrs, I=doppler wind velocity
+  # bom doesn't publish all the layers with their required IDs for A B C D and I sets so we need to do some processing here to get their backgrounds
+  # one assumes this is done to save disk space? but not sure why
+  # bom also doesn't publish background or layering for IDR00004 (the national rainfall radar), which is weird, so handle an exception for that
+  # online it looks like they use the 'IDE00135.radar' satellite image
+  # i.e. http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+  # waaargh, not sure why bom the gov is messy here?
+
+  # so, if dealing with the national rainfall radar (IDR00004)
+  if [[ "${id}" == 'IDR00004' ]]; then
+    # hardcode getting a known static national background image
+    # use the static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
+    # i.e. IDE00035 (note: *35* not *135*)
+    # they don't publish that image in their ftp archive either (wtf?!) so grab it from the website
+    # rename that image to the national rainfall radar ID, so we at least are keeping track of what we're trying to fix
+    # does this seem a bit hacky and disorganised for an agency that runs on data?
+    # also, we have to pretend to be a browser here, since bom discourages web scraping!
+    curl \
+      --output 'IDR00004.background.png' \
+      --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0' \
+      --referer 'http://www.bom.gov.au/products/national_radar_sat.loop.shtml' \
+      --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
+
+  # then if the ID ends in A B C D or I
+  elif [[ "${id}" =~ [A-D|I]$ ]]; then
+    # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
+    # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id%?}3*.png" || exit 4
+
+  # none of the above exceptions have been met
+  else
+    # don't need to do anything special, so get the ID layers as they're published; phew!
+    # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+    2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/${id}*.png" || exit 4
+  fi
+
+  # ensure radar image legend layers are available
+  printf '\n%s\n' "Getting graph legends:"
+  mkdir --parents "${working_directory}/images/radar/legend" || exit 2
+  cd "${working_directory}/images/radar/legend" || exit 2
+  # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
+  2>&1 wget --quiet --show-progress --progress=bar:force:noscroll --timestamping --continue --timeout=30 --tries=30 --random-wait "ftp://ftp.bom.gov.au/anon/gen/radar_transparencies/IDR.legend*.png" || exit 4
+
+  # completed successfully, stop timer and display total runtime
+  timer_stop=$(date +%s)
+  printf '\n%s\n\n' 'Completed successfully.'
+  printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+}
+
+make_timelapse() {
+  # this function handles the pre and post processing for making timelapse images out of an $id that is set inside handle_timelapse_images
+  # this function is expected to be called inside handle_timelapse_images after init has been run to set up temporary storage, etc
+  # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
+
+  # if after tests, ID is a radar or a satellite, set that context, as we need to do different processing for each
+  local context="${id_type}"
+
+  # now check to see if we have any collected images for this ID
+  # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
+  # use a subshell so our changes to `shopt` are temporary
+  # `nullglob` setting means patterns that don't match any filenames are simply expanded to **nothing** rather than remaining unexpanded
+  # we need this so no matches return empty space rather than an unglobbed asterisk, i.e. literal *
+  # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
+  # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
+  # also we don't need quoting in the array because we want things to intentionally wordsplit
+  files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.*))
+  # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
+  # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
+  # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here, unless we use messy exec?)
+  # this method of checking is also superior because we reduce processing later by already having matched files ready to go in an array
+  if ! [[ -d "${working_directory}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
+    printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
+    printf '%s\n\n' "Try 'bash ${0} ${context} ${id}' to start collecting images first."
+    exit 3
+  fi
+
+  # switch to the folder now we've checked the user input for it is legit
+  cd "${working_directory}/images/${context}/${id}/" || exit 2
+
+  # ensure we have a scratch storage ready for current conversion to be temporarily saved into
+  scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
+  # set up a counter for 'percentage complete' tracking in next steps
+  count=1
+  # set up arrays to capture exit codes from `convert` and `ffmpeg` during each iteration, as we'll test these later to check if any errors are encountered
+  convert_result=()
+  ffmpeg_result=()
+  # set stopwatch to keep track of total run time for assembling timelapse, starting from now
+  timer_start=$(date +%s)
+
+  # prepare each image as video frames
+    # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
+    if [[ "${context}" == 'satellite' ]]; then
+      # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
+      # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
+      # default megapixel limit for imagemagick is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
+      # set MAGICK_CONFIGURE_PATH to import bundled policy.xml settings to from .config folder to explicitly increase width and height limits, etc
+      # documentation at: https://imagemagick.org/script/resources.php
+
+      # now actually do the conversion
+      # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+      tput civis
+      for file in "${files[@]}"; do
+        printf '%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
+        # get the name of the current file only by stripping off its path
+        current_filename="${file##*/}"
+        # tif files from bom have multiple layers, and if just using filenames, imagemagick splits those layers into multiple files which is unwanted
+        # so use [0] after file name which `convert` interprets as "get the first layer only"
+        # ensure we are converting to jpegs by removing current filename's extension and substituting .jpg using parameter expansion
+        # also do `convert` quietly to avoid any warning messages that we might encounter about tif layers that are now irrelevant
+        # capture the exit code of `convert` into its prepared array for success checking later
+        convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
+          # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
+          # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
+          # use the served file metadata parsed through `date` to make our timestamp
+          # the text passed to `convert` to be created, is in the 'label' argument
+          if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
+            convert "${scratch}/${current_filename%.*}.jpg" \
+              -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --utc --reference "${current_filename}")" \
+              -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=($?)
+          fi
+        # advance the progress meter
+        ((count++))
+        # return cursor to the start of the line
+        printf '\r'
+      done
+      # restore the cursor
+      tput cnorm
+
+    # if we're making a timelapse of a radar, assemble its layers
+    elif [[ "${context}" == 'radar' ]]; then
+      # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
+      # determine what legend is required first, based on it's ID structure
+        # if ID ends in a number, it's a rainfields data; use legend 0 (rain rate scale, light -> heavy)
+        [[ "${id}" =~ [0-9]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.0.png"
+        # if ID ends in A B C or D then it's a rainfields data; use legend 1 (rainfall in mm)
+        [[ "${id}" =~ [A-D]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.1.png"
+        # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
+        [[ "${id}" =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
+
+      # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
+      # otherwise, it's a radar as "usual" so assemble those layers
+      # such a messy bom
+      if [[ "${id}" == 'IDR00004' ]]; then
+        # the conversion loop should exclude layers that don't exist for national radar
+        # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+        tput civis
+        for file in "${files[@]}"; do
+          printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
+          # do conversion quietly
+          convert -quiet \
+            "${legend}" \
+            "layers/*.background.png" \
+            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
+          # advance the progress meter
+          ((count++))
+          # return cursor to the start of the line
+          printf '\r'
+        done
+        # restore the cursor
+        tput cnorm
+      else
+        # hide the cursor while displaying progress, as on some systems it "jumps everywehere" during the loop
+        tput civis
+        # a radar as usual, so conversion loop should assemble known/desired layers
+        for file in "${files[@]}"; do
+          printf '%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
+          convert -quiet \
+            "${legend}" \
+            "layers/*.background.png" \
+            "layers/*.topography.png" \
+            "layers/*.locations.png" \
+            "layers/*.range.png" \
+            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=($?)
+          ((count++))
+          printf '\r'
+        done
+        # restore the cursor
+        tput cnorm
+      fi
+    fi
+
+  # if conversion encountered any errors, stop here
+    # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
+    # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
+    # so, only need to check for the existence of '1' anywhere
+    if [[ "${convert_result[*]}" =~ 1 ]]; then
+      printf '\n\n%s\n%s\n\n' "Error(s) occurred during image preparation." "Creating timelapse failed. Stopping."
+      exit 1
+    fi
+
+  # everything fine, so now get the first and last names of files we're timelapsing, for use in a moment to generate label for mp4 file
+  first_file="${files[0]##*/}"
+  last_file="${files[${#files[@]}-1]##*/}" # looks messy because to get last array item, we need total number of keys minus one
+  # determine each file's creation date and time to discern timeframe of capture
+  # utc is also useful as bom/generic weather seems to prefer that for consistency (although, bom not always)
+  timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
+  timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
+  timelapse_file="${working_directory}/timelapse/[${id}] ${timelapse_from} to ${timelapse_to}.mp4"
+
+  # ensure directory to store created timelapse exists
+  mkdir --parents "${working_directory}/timelapse" || exit 2
+
+  # now make mp4 video timelapse!
+  printf '\n%s\n' "Making MP4... "
+  # wait a short moment first for disk caching
+  sleep 1
+    # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
+    if [[ "${context}" == 'satellite' ]]; then
+      # capture the exit code of `ffmpeg` into the prepared array for success checking later
+      # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
+      # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
+      ffmpeg -r 25 -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
+
+    # if we're making a timelapse of a radar, we use the assembled png files
+    elif [[ "${context}" == 'radar' ]]; then
+      # `-r 10` means essentially 10fps; 1 frame for radar image per ~5 minutes; so @10fps, 1 second of footage = ~1hr of radar data timelapsed
+      # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
+      # generate timestamp based on first and last collected frames
+      # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
+      ffmpeg -r 10 -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "${timelapse_file}"; ffmpeg_result+=($?)
+    fi
+
+  # test if all `ffmpeg` iterations were successful
+    # use a subshell and set bash's Internal Field Separator to wordsplit the exit codes in ffmpeg_result with a plus sign instead of whitespace
+    # then, parse the expanded array into `bc` with here-string, so the expanded array becomes 'var1+var2+var3' and so on, that `bc` can then sum ;)
+    ffmpeg_success="$(IFS='+'; bc <<< "${ffmpeg_result[*]}")"
+  if [[ "${ffmpeg_success}" -eq 0 ]]; then
+    # after a successful timelapse is made, move the stored images folder to .archive and clean up the remaining folder once that's done
+    # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
+    printf '\n%s\n\n' "Timelapse video for ${id} ${context} successfully created."
+    mkdir --parents "${working_directory}/images/.archive/${context}" || exit 2
+    cd "${working_directory}" || exit 2
+    mv --force "${working_directory}/images/${context}/${id}" "${working_directory}/images/.archive/${context}"
+  else
+    printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
+    exit 1
+  fi
+
+  # encountered no error exit, so stop timer and report how long we've been running
+  timer_stop=$(date +%s)
+  printf '%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
+  # open the timelapse video file in the user's preferred application
+  ##xdg-open "${timelapse_file}"
+}
 
 ## runtime
 
