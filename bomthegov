@@ -16,7 +16,7 @@ fi
 
 ## software dependencies check
 # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
-dependencies=(git gawk wget curl imagemagick ffmpeg)
+dependencies=(git gawk wget curl imagemagick ffmpeg dialog)
 for package in "${dependencies[@]}"; do
   # quietly check with package manager if required software is installed
   dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
