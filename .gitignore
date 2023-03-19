@@ -8,3 +8,6 @@ timelapse
 # ignore debugging log
 .xtrace.log
 .xtrace.log.1
+
+# ensure debugging log setting isn't wiped out through updates
+.config/debug
