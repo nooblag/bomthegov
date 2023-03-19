@@ -1157,7 +1157,15 @@ make_timelapse() {
         # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
         [[ "${id}" =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
 
-      # however, if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
+      # check layers and legend files are available as we expect before further processing
+      if [[ ! -s "${legend}" || $(find layers -type f -not -empty -print | wc --lines) -eq 0 ]]; then
+        printf '%s\n' "The ${id} ${context} has collected images ready to timelapse, but is missing its legend or layer files."
+        printf '%s\n\n' "A timelapse cannot be created without these layers."
+        printf '%s\n\n' "Are you sure fecthing images for ${id} completed successfully?"
+        exit 1
+      fi
+
+      # if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
       # otherwise, it's a radar as "usual" so assemble those layers
       # such a messy bom
       if [[ "${id}" == 'IDR00004' ]]; then
