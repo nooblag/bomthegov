@@ -54,7 +54,7 @@ fi
     # set up a 'global' prompt to use everywhere, including in help docs
     less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
     # set up `less` to use custom prompt and mouse, etc
-    export LESS="--clear-screen --ignore-case --mouse --prompt=${less_prompt}"
+    export LESS="--clear-screen --ignore-case --prompt=${less_prompt}"
     # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
     export LESSSECURE=1
 
