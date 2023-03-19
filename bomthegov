@@ -471,23 +471,25 @@ display_dialog() {
   # dialog window settings
   height=40
   width="$((${#headings} + 6))" # length of heading, plus 6 characters = the borders of the box on each side
-  choice_height=1
+  choice_height=30
   menu="\n${4}\n\n${headings}"
 
-  # hide the cursor
+  # hide the cursor and clear the screen
   tput civis
+  clear
 
   # breakout `dialog` from the choice parameter by redirecting stdout and stderr to the current tty so we can actually see it
   choice=$(
-    dialog --clear --erase-on-exit --output-fd 1 \
+    dialog --clear --output-fd 1 \
            --backtitle "${this_name_and_version_and_author}" \
            --title "${2}" \
-           --cursor-off-label --ok-label " ${3} " \
+           --ok-label " ${3} " \
            --menu "${menu}" ${height} ${width} ${choice_height} "${options[@]}"
   )
 
-  # reset cursor
+  # reset cursor and clear screen
   tput cnorm
+  clear
 }
 
 get_satellite_list() {
