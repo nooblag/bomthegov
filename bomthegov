@@ -832,7 +832,9 @@ handle_update() {
   git reset --hard origin --quiet
   # pull latest code from remote
   # redirect `git pull` output to stderr wholesale so the update changes/response gets logged as part of xtrace
-  if git pull --force 1>&2; then
+  # also specify `--prune` to clean up any remote-tracking references on local that no longer exist on the remote
+  # `--stat` to ensure changes are shown and logged
+  if git pull --force --prune --stat 1>&2; then
     # quietly rebase to integrate and resync local to the remote branch
     # use `--force-rebase` to replay all commits, overwriting any local changes and sync to remote
     # if that goes well, clean out any stray files in the local repo directory
