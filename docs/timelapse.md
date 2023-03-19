@@ -23,6 +23,7 @@ If you know the ID of the image set you wish to timelapse right away, you can sp
 and **bomthegov** will start building it immediately.
 
 
+
 ## Process
 
 **bomthegov** uses the software package `imagemagick` to convert satellite and radar images into usable video frames, and then passes those frames to a video encoding tool called `ffmpeg` to assemble a timelapse video.
@@ -42,6 +43,7 @@ If you would like to 'clean up' all your stored image sets and archives to start
 which will delete everything in 'images' (including the '.archive' folder).
 
 Previously prepared timelapse videos will not be deleted in a reset.
+
 
 
 ## Technical details

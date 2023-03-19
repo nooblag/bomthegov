@@ -8,7 +8,7 @@ BOM receives modern satellite images from Himawari-8, a geostationary satellite 
 
 Himawari-8 is situated 35,800km above the equator, in line with Japan, Papua and central Australia.
 
-The following types of imagery are available to the public:
+The following types of imagery are currently available:
 
   * Infrared images
   * Visible images
@@ -30,6 +30,23 @@ Delete Time (Delt) refers to how many hours an image set will be available on th
 In another example, some legacy satellite image sets at the moment are kept for 504 hours (21 days), and so where the DelT is '504,' this means images from the past "504 hours" are available.
 
 
+
+## Search
+
+You can ask **bomthegov** to return a list of available satellites and the IDs as searchable text, by running:
+
+  `bash bomthegov satellite search`
+
+From there you'll see the satellite image set ID, a short description about its view/camera, etc.
+
+To search the text, press the `/` key, type your search query, and press `[Enter]`. Any matches to your search query will now be highlighted in the list.
+
+You can navigate the list by using the arrow keys, and `[Page Up]` and `[Page Down]` keys.
+
+`[Spacebar]` will scroll down 'a screen length,' and likewise, the `[Home]` and `[End]` keys will take you to the top and bottom of the list respectively.
+
+
+
 ## Fetching
 
 If you know the ID of the satellite image set you want to fetch, you can start right away by passing **bomthegov** its ID. For example, you can start downloading the "geostationary full disc satellite view" in "visual true colour & infrared greyscale composite" by specifying the `IDE00426` identifier, like this:
@@ -40,6 +57,8 @@ If you know the ID of the satellite image set you want to fetch, you can start r
 To find the list of satellites and IDs, use:
 
   `bash bomthegov satellite list`
+
+
 
 
 ### Matching times
@@ -74,9 +93,9 @@ Globbing is currently only available for minute ranges.
 
 The "delete time" (DelT) for some satellite images is less than 24hrs, so this setting is mostly only useful when **bomthegov** is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
 
-You can run the 'list' option to get data on each satellite's DelT:
+You can run the 'search' option to get data on each satellite's DelT:
 
-  `bash bomthegov satellite list`
+  `bash bomthegov satellite search`
 
 
 

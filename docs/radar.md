@@ -36,6 +36,23 @@ From there you'll see the radar image set ID, a short description about its loca
 Delete Time (Delt) refers to how many hours an image set will be available on the BOM public archive server, before it is replaced with new imagery. For instance, most radar image sets have a DelT of '1.2' and this means that images that are older than 72 minutes from the current time will no longer be available on the server. Or said another way, all images from the past 1.2 hours are currently available.
 
 
+
+## Search
+
+You can ask **bomthegov** to return a list of available radars and the IDs as searchable text, by running:
+
+  `bash bomthegov radar search`
+
+From there you'll see the radar image set ID, a short description about its location, etc.
+
+To search the text, press the `/` key, type your search query, and press `[Enter]`. Any matches to your search query will now be highlighted in the list.
+
+You can navigate the list by using the arrow keys, and `[Page Up]` and `[Page Down]` keys.
+
+`[Spacebar]` will scroll down 'a screen length,' and likewise, the `[Home]` and `[End]` keys will take you to the top and bottom of the list respectively.
+
+
+
 ## Fetching
 
 If you know the ID of the radar image set you want to fetch, you can start right away by passing **bomthegov** its ID. For example, you can start downloading the "512km x 512km Gulf of Carpentaria" rain radar by specifying the `IDR361` identifier, like this:
@@ -46,6 +63,8 @@ If you know the ID of the radar image set you want to fetch, you can start right
 To find the list of radars and IDs, use:
 
   `bash bomthegov radar list`
+
+
 
 
 ### Matching times
@@ -80,9 +99,10 @@ Globbing is currently only available for minute ranges.
 
 The "delete time" (DelT) for most radar images is 1.2hrs, so this setting is mostly only useful when **bomthegov** is running as an automated job (for example, a cronjob), as a glob pattern outside DelT will not return any matches, and hence capture no images.
 
-You can run the 'list' option to get data on each radar's DelT:
+You can run the 'search' option to get data on each radar's DelT:
 
-  `bash bomthegov radar list`
+  `bash bomthegov radar search`
+
 
 
 
