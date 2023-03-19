@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.3 - 2023/03/19
+
+* Improve update handling and garbage collection.
+* Improve start-up Operating System and bundled-files dependency checks.
+* Introduce dialog boxes for `list`, and add `search` to display IDs and description data as searchable text.
+* Improve error message handling.
+* Improve help screens.
+* Improve and update documentation.
+* Fix bug when making timelapse videos that occurred when running into stay _.listing_ files.
+
+---
+
 ## 0.1.2 - 2023/03/14
 
 * Improve debug logging.
