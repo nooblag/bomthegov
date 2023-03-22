@@ -1074,29 +1074,22 @@ make_timelapse() {
   # if after tests, ID is a radar or a satellite, set that context, as we need to do different processing for each
   local context="${id_type}"
 
-  # now check to see if we have any collected images for this ID
-  # this tests if directory exists and is not empty, while also collecting a list of files (if they exist) for use later
-  # use a subshell so our changes to `shopt` are temporary
-  # `nullglob` setting means patterns that don't match any filenames are simply expanded to **nothing** rather than remaining unexpanded
-  # we need this so no matches return empty space rather than an unglobbed asterisk, i.e. literal *
-  # `dotglob` setting means globbing to include hidden files, necessary for reliably ensuring a path is indeed empty or not
-  # use `echo` to expand to print any matching filenames only, not an unspecified shell globbing wildcard which eventually expands to everything
-  # also we don't need quoting in the array because we want things to intentionally wordsplit
-  # globbing pattern here should return files with 3 letter file extensions we expect, like .jpg or .png for example
-  files=($(shopt -s nullglob dotglob; echo "${working_directory}/images/${context}/${id}/"*.???))
-  # when evaluating the length of $files array with parameter expansion, if it's 0 then the path is empty/condition is true
-  # this is a more robust way than using `-d` (which returns true if a directory exists even when empty)
-  # or `find` (as it's exit codes aren't consistent with empty paths that exist, and not as flexible here, unless we use messy exec?)
-  # this method of checking is also superior because we reduce processing later by already having matched files ready to go in an array
-  if ! [[ -d "${working_directory}/images/${context}/${id}" && ${#files[@]} -ne 0 ]]; then
+  # now build list of files to proccess for the ID
+  # use `find` to pattern match files, ignoring stray '.listing' files and empty files
+  # this approach handles spaces in filenames and paths much better than the shell globbing into an array with shopt modification as before
+  # push the stderr for `find` to nowhere if ID/path doesn't actually exist
+  find "${working_directory}/images/${context}/${id}/" -maxdepth 1 -name '*.*' -not -iname '.listing' -not -empty -print 2> /dev/null | sort --unique > timelapse-files.list
+  # if the ID directory doesn't exist or the list of files_to_process is empty, say so and stop here
+  if ! [[ -d "${working_directory}/images/${context}/${id}" && -s timelapse-files.list ]]; then
     printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
     printf '%s\n\n' "Try 'bash ${0} ${context} ${id}' to start collecting images first."
     exit 3
   fi
+  # build array of files found to process
+  mapfile -t files < timelapse-files.list
 
-  # switch to the folder now we've checked the user input for it is legit
+  # switch to the images folder for the ID
   cd "${working_directory}/images/${context}/${id}/" || exit 2
-
   # ensure we have a scratch storage ready for current conversion to be temporarily saved into
   scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
   # set up a counter for 'percentage complete' tracking in next steps
@@ -1178,7 +1171,7 @@ make_timelapse() {
           convert -quiet \
             "${legend}" \
             "layers/*.background.png" \
-            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
+            "${file}" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
           # advance the progress meter
           ((count++))
           # return cursor to the start of the line
@@ -1198,7 +1191,7 @@ make_timelapse() {
             "layers/*.topography.png" \
             "layers/*.locations.png" \
             "layers/*.range.png" \
-            "$file" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
+            "${file}" -flatten "${scratch}/${file##*/}"; convert_result+=(${?})
           ((count++))
           printf '\r'
         done
