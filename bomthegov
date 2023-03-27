@@ -166,19 +166,25 @@ logfile="${working_directory}/.xtrace.log"
 init() {
   # ensure we have a path for image storage available
   mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
-
   # set a temporary storage for this session
   tmp="$(mktemp --directory --tmpdir="${working_directory}/.tmp" .session-XXXXXXXXXXXXXXXX)"
-
   # set a trap to ensure garbage collection from now on
   trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
   # set a trap to ensure cursor is reset if interrupted by user and everything stops
-  # also echo a few chars to empty the space if interrupted while spinner running
+  # also bump in a few chars to empty the space if interrupted while spinner running
   # final errexit will also trip garbage collection EXIT trap above
-  trap 'tput cnorm && echo "   " && exit 6' SIGINT
-
+  trap interrupted SIGINT
   # set the temporary storage as the working directory
   cd "${tmp}" || exit 2
+}
+
+interrupted() {
+  # ensure the cursor is restored/unhidden
+  tput cnorm
+  # cleanup junk output if interrupted while spinner is running
+  printf ' \r\n'
+  # final errexit to trip garbage collection
+  exit 6
 }
 
 display_about() {
