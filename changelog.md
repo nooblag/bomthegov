@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.4 - 2023/03/29
+
+ * Improve software update process.
+ * Improve collected images file handling.
+ * Introduce compressed archiving.
+ * Improve garbage collection.
+
+---
+
 ## 0.1.3 - 2023/03/19
 
 * Improve update handling and garbage collection.
