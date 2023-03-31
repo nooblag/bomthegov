@@ -147,7 +147,7 @@ logfile="${working_directory}/.xtrace.log"
       # [xtrace]
       # file descriptors 3 through 9 are not set, so use the last fd, 9, to write anything sent there to the log file only
       # note the *lack of spaces* here to mean fd9 *appends* to file ;)
-      exec 9>>"${logfile}"
+      exec 9>> "${logfile}"
     # now tell bash to write its 'xtrace' output to fd9 which we've opened above
     BASH_XTRACEFD=9
     # rewrite $P4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
@@ -360,7 +360,7 @@ display_flock_error() {
   # 5 is set explicitly on the `flock` line with --conflict-exit-code 5
   # so if we encounter exit code '5' meaning `flock` conflict, display an error message, otherwise fail and stop silently
   if [[ ${1} -eq 5 ]]; then
-    >&2 printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical fetch process is already running." "Stopping."
+    >&2 printf '\n%s\n%s\n%s\n\n' "*** File lock error ***" "An identical requested process is already running." "Stopping."
   fi
   # now stop with whatever exit code we encountered
   exit "${1}"
@@ -1077,6 +1077,10 @@ make_timelapse() {
   # this function is expected to be called inside handle_timelapse_images after init has been run to set up temporary storage, etc
   # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
 
+  # first, set a file lock to ensure that only one instance of a specific timelapse build for an ID can run at a time
+  # set fd8 as the lock, as fd8 wraps around this function at the end of the last curly brace to lock runtime on all code inside
+  flock  --exclusive --conflict-exit-code 5 --nonblock 8 || display_flock_error ${?}
+
   # if after tests, ID is a radar or a satellite, set that context, as we need to do different processing for each
   local context="${id_type}"
 
@@ -1278,7 +1282,7 @@ make_timelapse() {
   printf '\n%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
   # open the timelapse video file in the user's preferred application
   ##xdg-open "${working_directory}/timelapse/${timelapse_label}.mp4"
-}
+} 8> "/run/lock/bomthegov-timelapse-${id}"
 
 
 
