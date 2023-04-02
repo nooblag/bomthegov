@@ -345,12 +345,13 @@ display_verbose_help() {
 
 display_version() {
   cat <<-end_cat
+
 	${this_name}
 	Version ${this_version}
 
 	end_cat
   # now display license amble from bundled file
-  display_verbose_help "${working_directory}/license.md"
+  fmt --split-only "${working_directory}/license.md"
 }
 
 display_flock_error() {
