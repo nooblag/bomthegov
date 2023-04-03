@@ -833,22 +833,25 @@ handle_reset_cleanup() {
 }
 
 handle_update() {
-  # ensure we're on the 'main' branch
-  git checkout 'releases' --quiet
-  # quietly ensure we're at the last remote commit, to overwrite any local changes
-  git reset --hard origin --quiet
-  # pull latest code from remote
-  # redirect `git pull` output to stderr wholesale so the update changes/response gets logged as part of xtrace
-  # also specify `--prune` to clean up any remote-tracking references on local that no longer exist on the remote
-  # `--progress` and `--stat` to ensure changes are shown and logged
-  if git pull --all --force --rebase --prune --progress --stat 1>&2; then
-    # quietly rebase to integrate and resync local to the remote branch
-    # use `--force-rebase` to replay all commits, overwriting any local changes and sync to remote
-    # if that goes well, clean out any stray files in the local repo directory
-    git rebase --force-rebase --quiet && git clean --force 1>&2
+  # development should never happen on a branch called 'releases'
+  # cos this branch is overwritten by remote origin without warning!
+  # begin by fetching latest remote history
+  # redirect stdout to stderr so progress changes are also written to xtrace log
+  if git fetch --all --write-commit-graph --tags --prune --auto-gc --force 1>&2; then
+    # switch to 'releases' of remote first, then to local branch of that
+    git checkout remotes/origin/releases --force --quiet || exit 8
+    git checkout releases --force --quiet || exit 8
+    # ensure local 'releases' branch is authoritative by remote
+    git branch --set-upstream-to=remotes/origin/releases releases --quiet || exit 8
+    # now integrate the fetched changes or say "already up to date"
+    # diffstat colours are lost here, so could wrap in `script` in future
+    git pull --force --rebase --prune --progress --stat 1>&2 || exit 8
+    # ensure the HEAD for the local branch is the latest remote release commit
+    git reset --hard remotes/origin/releases --quiet || exit 8
+    # cleanup any stray files on local that are no longer on remote
+    git clean --force 1>&2
   else
-    # problem encountered pulling code
-    printf '%s\n' "Updating ${0} failed."
+    printf '%s\n' "Updating ${this_name} failed."
     exit 4
   fi
 }
