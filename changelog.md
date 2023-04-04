@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 - 2023/04/04
+
+ * Add file locking during timelapse creation, to prevent concurrent ID processing.
+ * Improve displaying version and documentation.
+ * Overhaul update handling.
+
+---
+
 ## 0.1.4 - 2023/03/29
 
  * Improve software update process.
