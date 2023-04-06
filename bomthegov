@@ -439,12 +439,15 @@ display_pretty_timer(){
 }
 
 display_dialog() {
-  # this function takes the contents of a file, passed to it in $1, and displays that data as a menu in dialog box
+  # consolodate the usage of `dialog`
+  # baseline functionality takes the contents of a file, passed to here in $1, and displays that data as a menu in dialog box
   # the title of the dialog box is expected in $2
-  # ok button label is expected in $3
-  # menu description text is expected in $4
-  # the selected item is put into $choice
+  # ok button label for the first (always default) list screen is expected in $3
+  # that list menu description text is expected in $4
+  # extended questions are asked when dealing with 'timelapse' menu file
+  # the selected item(s) go into into $choice array
 
+  # build default first list menu
   if [[ -s "${1}" ]]; then
     # read the first line of the data file to get the list headings
     read -r headings < "${1}"
@@ -468,45 +471,51 @@ display_dialog() {
       options+=("${id}" "${description#"${description%%[![:space:]]*}"}")
     done < <(tail --lines +2 "${1}")
   fi
-
   # stop here if building a list failed
   if [[ -z ${headings} || -z "${options[*]}" ]]; then
     >&2 printf '%s\n' "failed. Couldn't build menu."
     exit 1
   fi
 
-  # dialog window settings
+  # set up default first list window settings
   height=40
   width="$((${#headings} + 6))" # length of heading, plus 6 characters = the borders of the box on each side
   choice_height=30
+  # get the description text and then show list headings
   menu="\n${4}\n\n${headings}"
 
+  # now display the dialog
   # hide the cursor and clear the screen
   tput civis
   clear
-
-  # display the dialog box of the list
   if [[ "${1}" == 'timelapse' ]]; then
-    # ask additional question to customise FPS
-    # breakout `dialog` from the choice parameter by redirecting stdout and stderr to the current tty so we can actually see it
+    # ask additional questions to customise video frame size and fps
+    # breakout `dialog` from inside the choice array by redirecting stdout and stderr to the current tty so we can actually see it with `--output-fd 1`
+    # frame-size: `--radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>`
     # fps: `--rangebox <text> <height> <width> <min-value> <max-value> <default-value>`
-    # place choices into array, as: 1st entry is the ID, 2nd entry is FPS
-    choice=($(
+    # place choices into array, as: 1st entry is the ID, 2nd entry is the video resolution, 3rd is FPS (separated by spaces)
+    read -r -a choice <<< "$(
       dialog --clear --output-fd 1 \
              --backtitle "${this_name_and_version_and_author}" --title "${2}" --ok-label " ${3} " --menu "${menu}" ${height} ${width} ${choice_height} "${options[@]}" \
-             --backtitle "${this_name_and_version_and_author}" --title "Frames Per Second" --rangebox "\nPlease select Frames Per Second to render:" 10 70 1 60 25
-    ))
+             --backtitle "${this_name_and_version_and_author}" --title "Video Resolution" --radiolist "\nSelect the video resolution limit (spacebar to change):" 15 60 5 \
+                '4096x2160' '4K Cinema High Definition' 'off' \
+                '1920x1080' '1080p High Definition' 'on' \
+                '1280x720' '720p Half-size HD' 'off' \
+                '768x432' 'Standard Digital Video' 'off' \
+                '480x270' 'Small screens, very low resolution' 'off' \
+             --backtitle "${this_name_and_version_and_author}" --title "Video Frame Speed" --rangebox "\nSelect the video frame speed (Frames Per Second):" 10 70 1 60 25
+    )"
   else
-    # display the list as normal, capture choice as string instead of array here as we only need to return ID
-    choice=$(
+    # display the list as normal
+    read -r -a choice <<< "$(
       dialog --clear --output-fd 1 \
              --backtitle "${this_name_and_version_and_author}" --title "${2}" --ok-label " ${3} " --menu "${menu}" ${height} ${width} ${choice_height} "${options[@]}"
-    )
+    )"
   fi
-
-  # reset cursor and clear screen
+  # reset cursor, clear screen and bump in some empty space
   tput cnorm
   clear
+  printf '\n'
 }
 
 get_satellite_list() {
@@ -551,7 +560,7 @@ get_timelapse_list() {
     # traverse the list and clean off the paths from each ID
     while read -r path; do
       # pattern match off everything until after last slash with parameter expansion and build new list
-      echo "${path##*/}" >> timelapse-IDs.list
+      printf '%s\n' "${path##*/}" >> timelapse-IDs.list
     done < image-paths.list
     merge_lists "${working_directory}/.data/desc.csv" 'timelapse-IDs.list' prettify > timelapse
   else
@@ -674,10 +683,10 @@ handle_satellite_images() {
       # ok button label is expected in $3
       # menu description text is expected in $4
       display_dialog satellites "List of Available Satellites" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
-      if [[ -n "${choice}" ]]; then
+      if [[ -n "${choice[*]}" ]]; then
         # user has selected an id from the list to fetch
         # set $id to that, in the same method as what would happen with command-line input through handle_user_input
-        id="${choice}"
+        id="${choice[0]}"
         # now that we have an id set, attempt to actually download those images, while also passing original command line args (to handle time globbing for example)
         download_satellite_images "${@}"
       fi
@@ -736,8 +745,8 @@ handle_radar_images() {
         exit 4
       fi
       display_dialog radars "List of Available Radars" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
-      if [[ -n "${choice}" ]]; then
-        id="${choice}"
+      if [[ -n "${choice[*]}" ]]; then
+        id="${choice[0]}"
         download_radar_images "${@}"
       fi
     ;;
@@ -794,16 +803,22 @@ handle_timelapse_images() {
       # ok button label is expected in $3
       # menu description text is expected in $4
       display_dialog timelapse "Image Sets Available to Timelapse" "Timelapse" "Select one of the following IDs to start making a timelapse video from its collected images."
-      if [[ -n "${choice[0]}" && -n "${choice[1]}" ]]; then
+      # check if the all the choices we expect exist, if one is missing, the user cancelled the dialog so don't do anything
+      if [[ -n "${choice[0]}" && -n "${choice[1]}" && -n "${choice[2]}" ]]; then
         # user has selected an id from the list to make a timelapse with
         # set $id to that, in the same method as what would happen with command-line input through handle_user_input
         id="${choice[0]}"
-        # also set the FPS choice
-        fps="${choice[1]}"
+        # set the video frame size choice
+        resolution="${choice[1]}"
+        # set the fps
+        fps="${choice[2]}"
         # now test that id in the same way as user input so that regex checks are applied to determine $id_type as make_timelapse needs that
         handle_user_input "${1}" "${id}"
         # if those checks pass, we have an id set, attempt to actually make a timelapse video
         make_timelapse
+      else
+        # interrupted
+        exit 6
       fi
     ;;
 
@@ -818,6 +833,8 @@ handle_timelapse_images() {
     *)
       init
       handle_user_input "${1}" "${2}"
+      # bump in some empty space before building timelapse
+      printf '\n'
       make_timelapse
     ;;
   esac
@@ -1092,7 +1109,6 @@ make_timelapse() {
   # this function handles the pre and post processing for making timelapse images out of an $id that is set inside handle_timelapse_images
   # this function is expected to be called inside handle_timelapse_images after init has been run to set up temporary storage, etc
   # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
-  echo
 
   # first, set a file lock to ensure that only one instance of a specific timelapse build for an ID can run at a time
   # set fd8 as the lock, as fd8 wraps around this function at the end of the last curly brace to lock runtime on all code inside
@@ -1108,12 +1124,16 @@ make_timelapse() {
   find "${working_directory}/images/${context}/${id}/" -maxdepth 1 -name '*.*' -not -iname '.listing' -not -empty -print 2> /dev/null | sort --unique > timelapse-files.list
   # if the ID directory doesn't exist or the list of files_to_process is empty, say so and stop here
   if ! [[ -d "${working_directory}/images/${context}/${id}" && -s timelapse-files.list ]]; then
-    printf "\n'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
+    printf "'%s' %s\n" "${id}" "might be a valid ${context} ID, but does not seem to have any collected images yet."
     printf '%s\n\n' "Try 'bash ${0} ${context} ${id}' to start collecting images first."
     exit 3
   fi
   # build array of files found to process
   mapfile -t files < timelapse-files.list
+
+  # set choice settings if custom settings are not set to default to 1080p 25fps
+  [[ -z "${resolution}" ]] && resolution='1920x1080'
+  [[ -z "${fps}" ]] && fps=25
 
   # switch to the images folder for the ID
   cd "${working_directory}/images/${context}/${id}/" || exit 2
@@ -1148,14 +1168,15 @@ make_timelapse() {
         # ensure we are converting to jpegs by removing current filename's extension and substituting .jpg using parameter expansion
         # also do `convert` quietly to avoid any warning messages that we might encounter about tif layers that are now irrelevant
         # capture the exit code of `convert` into its prepared array for success checking later
-        convert -quiet -scale 1920x1080\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
+        # scale to requested resolution only if image is larger, i.e. `>` (which needs to be escaped from the shell with a backslash)
+        convert -quiet -scale "${resolution}"\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
           # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
           # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
           # use the served file metadata parsed through `date` to make our timestamp
           # the text passed to `convert` to be created, is in the 'label' argument
           if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
             convert "${scratch}/${current_filename%.*}.jpg" \
-              -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"$(date --utc --reference "${current_filename}")" \
+              -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"${this_name} - $(date --utc --reference "${current_filename}")" \
               -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
           fi
         # advance the progress meter
