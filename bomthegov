@@ -472,7 +472,7 @@ display_dialog() {
     done < <(tail --lines +2 "${1}")
   fi
   # stop here if building a list failed
-  if [[ -z ${headings} || -z "${options[*]}" ]]; then
+  if [[ -z "${headings}" || -z ${options[*]} ]]; then
     >&2 printf '%s\n' "failed. Couldn't build menu."
     exit 1
   fi
@@ -485,9 +485,8 @@ display_dialog() {
   menu="\n${4}\n\n${headings}"
 
   # now display the dialog
-  # hide the cursor and clear the screen
+  # hide the cursor first
   tput civis
-  clear
   if [[ "${1}" == 'timelapse' ]]; then
     # ask additional questions to customise video frame size and fps
     # breakout `dialog` from inside the choice array by redirecting stdout and stderr to the current tty so we can actually see it with `--output-fd 1`
@@ -514,7 +513,7 @@ display_dialog() {
   fi
   # reset cursor, clear screen and bump in some empty space
   tput cnorm
-  clear
+  clear -x
   printf '\n'
 }
 
@@ -683,7 +682,7 @@ handle_satellite_images() {
       # ok button label is expected in $3
       # menu description text is expected in $4
       display_dialog satellites "List of Available Satellites" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
-      if [[ -n "${choice[*]}" ]]; then
+      if [[ -n ${choice[*]} ]]; then
         # user has selected an id from the list to fetch
         # set $id to that, in the same method as what would happen with command-line input through handle_user_input
         id="${choice[0]}"
@@ -739,13 +738,13 @@ handle_radar_images() {
       printf '\n%s' "Fetching radar list... "
       if handle_spinner get_radar_list; then
         printf '%s\n' "done."
-        printf '%s\n' "Preparing list dialog window... "
+        printf '%s' "Preparing list dialog window... "
       else
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
       display_dialog radars "List of Available Radars" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
-      if [[ -n "${choice[*]}" ]]; then
+      if [[ -n ${choice[*]} ]]; then
         id="${choice[0]}"
         download_radar_images "${@}"
       fi
@@ -789,7 +788,7 @@ handle_timelapse_images() {
       printf '\n%s' "Searching for collected images... "
       if handle_spinner get_timelapse_list; then
         printf '%s\n' "done."
-        printf '%s\n' "Preparing list dialog window... "
+        printf '%s' "Preparing list dialog window... "
       else
         printf "\r%s\n\n" "No image sets found. Try collecting some images?"
         printf '%s\n\n' "If you need help, try: 'bash ${0} help'"
@@ -972,7 +971,7 @@ download_satellite_images() {
     # this will traverse and fetch existing archive (i.e. whatever bom keeps on the server for 24 hours, for example)
     # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
     # determine first if this is running as a cronjob, because if so, also introduce randomised wait times between each file here for a bulk fetch
-    if [[ "${cron}" -eq 1 ]]; then
+    if [[ ${cron} -eq 1 ]]; then
       # running as cron, introduce a randomised 0.5 to ~5.5 second wait between each file
       # satellite images are quite large, so bulk transfers of whole image sets before each "delete time" at remote end (DelT) are the most resource intensive for bom
       printf '%s\n\n' "*** Running as a cronjob, so going slow ***"
@@ -1132,8 +1131,8 @@ make_timelapse() {
   mapfile -t files < timelapse-files.list
 
   # set choice settings if custom settings are not set to default to 1080p 25fps
-  [[ -z "${resolution}" ]] && resolution='1920x1080'
-  [[ -z "${fps}" ]] && fps=25
+  [[ -z ${resolution} ]] && resolution='1920x1080'
+  [[ -z ${fps} ]] && fps=25
 
   # switch to the images folder for the ID
   cd "${working_directory}/images/${context}/${id}/" || exit 2
@@ -1291,7 +1290,7 @@ make_timelapse() {
     # use a subshell and set bash's Internal Field Separator to wordsplit the exit codes in ffmpeg_result with a plus sign instead of whitespace
     # then, parse the expanded array into `bc` with here-string, so the expanded array becomes 'var1+var2+var3' and so on, that `bc` can then sum ;)
     ffmpeg_success="$(IFS='+'; bc <<< "${ffmpeg_result[*]}")"
-    if [[ "${ffmpeg_success}" -ne 0 ]]; then
+    if [[ ${ffmpeg_success} -ne 0 ]]; then
       printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
       exit 1
     fi
