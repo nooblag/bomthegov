@@ -636,7 +636,7 @@ handle_question() {
   # display a question and return zero status if 'Y' or 'y' matched, which will continue
   # $1 is the contents of question passed to this function
   # i.e. usage: handle_question "Continue?" && dostuff
-  read -r -p "${1} [Y/n] " answer
+  read -r -p "${1} [y/N] " answer
   [[ ${answer} == 'Y' || ${answer} == 'y' ]] && return 0 || return 1
 }
 
@@ -669,7 +669,7 @@ handle_satellite_images() {
       # doing work with files, so set up temporary workspace
       init
       # say what we're doing
-      printf '\n%s' "Fetching satellite list... "
+      printf '\n%s ' "Fetching satellite list..."
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if ! handle_spinner get_satellite_list; then
         printf '%s\n' 'failed. Is the Internet connection up?'
@@ -693,7 +693,7 @@ handle_satellite_images() {
 
     'search')
       init
-      printf '\n%s' "Fetching satellite list... "
+      printf '\n%s ' "Fetching satellite list..."
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if handle_spinner get_satellite_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
@@ -735,10 +735,10 @@ handle_radar_images() {
   case "${2}" in
     'list')
       init
-      printf '\n%s' "Fetching radar list... "
+      printf '\n%s ' "Fetching radar list..."
       if handle_spinner get_radar_list; then
         printf '%s\n' "done."
-        printf '%s' "Preparing list dialog window... "
+        printf '%s ' "Preparing list dialog window..."
       else
         printf '%s\n' 'failed. Is the Internet connection up?'
         exit 4
@@ -752,7 +752,7 @@ handle_radar_images() {
 
     'search')
       init
-      printf '\n%s' "Fetching radar list... "
+      printf '\n%s ' "Fetching radar list..."
       if handle_spinner get_radar_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
@@ -785,10 +785,10 @@ handle_timelapse_images() {
   case "${2}" in
     'list')
       init
-      printf '\n%s' "Searching for collected images... "
+      printf '\n%s ' "Searching for collected images..."
       if handle_spinner get_timelapse_list; then
         printf '%s\n' "done."
-        printf '%s' "Preparing list dialog window... "
+        printf '%s ' "Preparing list dialog window..."
       else
         printf "\r%s\n\n" "No image sets found. Try collecting some images?"
         printf '%s\n\n' "If you need help, try: 'bash ${0} help'"
@@ -928,7 +928,7 @@ download_satellite_images() {
   handle_cron_sleep
 
   # attempt to fetch what looks like a valid satellite ID
-  printf '\n%s' "Attempting to fetch ${id} satellite images: "
+  printf '\n%s ' "Attempting to fetch ${id} satellite images:"
   # ensure we have recent list first
   if ! handle_spinner get_satellite_list; then
     printf '%s\n' 'failed. Is the Internet connection up?'
@@ -1003,7 +1003,7 @@ download_radar_images() {
   handle_cron_sleep
 
   # now attempt to fetch what looks like a valid radar ID
-  printf '\n%s' "Attempting to fetch ${id} radar data: "
+  printf '\n%s ' "Attempting to fetch ${id} radar data:"
   # ensure we have recent list first
   if ! handle_spinner get_radar_list; then
     printf '%s\n' 'failed. Is the Internet connection up?'
@@ -1264,12 +1264,13 @@ make_timelapse() {
   timelapse_from="$(date --utc '+%Y-%m-%d_%H%M' --reference "${first_file}")"
   timelapse_to="$(date --utc '+%Y-%m-%d_%H%M' --reference "${last_file}")"
   timelapse_label="[${id}] ${timelapse_from} to ${timelapse_to}"
+  timelapse_filename="${timelapse_label} [Build $(date '+%Y-%m-%d_%H%M%S_%N')]"
 
   # ensure directory to store created timelapse exists
   mkdir --parents "${working_directory}/timelapse" || exit 2
 
   # now make mp4 video timelapse!
-  printf '\n%s\n' "Making MP4... "
+  printf '\n%s ' "Making MP4..."
   # wait a short moment first for disk caching
   sleep 1
     # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
@@ -1279,11 +1280,11 @@ make_timelapse() {
       # set pixel format to explicitly use jpeg full colour range 'yuvj420p'
       # set rendering preset to very slow for best compression and best quality preset 0
       # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuvj420p -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_label}.mp4"; ffmpeg_result+=(${?})
+      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuvj420p -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
     elif [[ "${context}" == 'radar' ]]; then
-      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_label}.mp4"; ffmpeg_result+=(${?})
+      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
     fi
 
   # test if all `ffmpeg` iterations were successful
@@ -1296,25 +1297,41 @@ make_timelapse() {
     fi
     printf '\n%s%s%s\n\n' "$(tput setaf 10)" "Timelapse video for ${id} ${context} successfully created." "$(tput sgr0)"
 
-  # after a successful timelapse is made, compress the stored images folder to .archive and clean up the remaining folder once that's done
-  # clean up is needed so an empty ID doesn't appear in the available timelapse listings once a successful timelapse has been made from its data
-    # delete the scratch area to save disk space
-    printf '%s ' "Cleaning up scrach disk..."
-    handle_spinner rm --recursive --force "${scratch:?}/" && printf '%s\n' "done."
-    # ensure archive directory exists
-    mkdir --parents "${working_directory}/images/.archive/${context}" || exit 2
-    # compress the collected image set into the archive
-    # enter the image storage directory first
-    cd "${working_directory}/images/${context}/" || exit 2
-    printf '%s ' "Archiving original images..."
-    if handle_spinner tar --create --gzip --label="${id}" --file="${working_directory}/images/.archive/${context}/${timelapse_label}.tar.gz" "${id}/"; then
-      # remove originals now they're successfully archived
-      handle_spinner rm --recursive --force "${working_directory}/images/${context}/${id}/" && printf '%s\n' "done."
+  # after a successful timelapse is made, ask to compress the stored images folder to .archive and clean up the remaining folder once that's done
+  # delete the scratch area to save disk space first
+  printf '%s ' "Cleaning up scrach disk..."
+  handle_spinner rm --recursive --force "${scratch:?}/" && printf '%s\n\n' "done."
+  # archive the collected image set? ask the question if interactive
+  if [[ ${cron} -ne 1 ]]; then
+    # pause the stopwatch timer here, to not count time waiting for this question to be answered as processing time
+    timer_pause_start=$(date +%s)
+    handle_question "Remove ${id} ${context} from the timelapse list and archive its image set?"; mark_success=${?}
+    timer_pause_stop=$(date +%s)
+    if [[ ${mark_success} -eq 0 ]]; then
+      # yep, archive the stuff
+      # ensure archive directory exists
+      mkdir --parents "${working_directory}/images/.archive/${context}" || exit 2
+      # enter the image storage directory first to make it easy for `tar`
+      cd "${working_directory}/images/${context}/" || exit 2
+      printf '%s ' "Compressing collected image set into '.archive' folder..."
+      if handle_spinner tar --create --gzip --label="${id}" --file="${working_directory}/images/.archive/${context}/${timelapse_label}.tar.gz" "${id}/"; then
+        # remove originals now they're successfully archived
+        handle_spinner rm --recursive --force "${working_directory}/images/${context}/${id}/" && printf '%s\n' "done."
+      fi
     fi
+  fi
 
   # encountered no error exit, so stop timer and report how long we've been running
   timer_stop=$(date +%s)
-  printf '\n%s\n\n' "Total processing time was $(display_pretty_timer $((timer_stop-timer_start)))."
+  # if the timer was paused, subtract the paused waiting time from the processing time
+  if [[ -n ${timer_pause_start} && -n ${timer_pause_stop} ]]; then
+    paused_time=$((timer_pause_stop-timer_pause_start))
+    processing_time=$((timer_stop-timer_start))
+    total_processing_time=$((processing_time-paused_time))
+  else
+    total_processing_time=$((timer_stop-timer_start))
+  fi
+  printf '\n%s\n\n' "Total processing time was $(display_pretty_timer ${total_processing_time})."
   # open the timelapse video file in the user's preferred application
   ##xdg-open "${working_directory}/timelapse/${timelapse_label}.mp4"
 } 8> "/run/lock/bomthegov-timelapse-${id}"
