@@ -661,7 +661,7 @@ handle_satellite_images() {
       # doing work with files, so set up temporary workspace
       init
       # say what we're doing
-      printf '%s' "Fetching satellite list... "
+      printf '\n%s' "Fetching satellite list... "
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if ! handle_spinner get_satellite_list; then
         printf '%s\n' 'failed. Is the Internet connection up?'
@@ -685,7 +685,7 @@ handle_satellite_images() {
 
     'search')
       init
-      printf '%s' "Fetching satellite list... "
+      printf '\n%s' "Fetching satellite list... "
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if handle_spinner get_satellite_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
@@ -727,7 +727,7 @@ handle_radar_images() {
   case "${2}" in
     'list')
       init
-      printf '%s' "Fetching radar list... "
+      printf '\n%s' "Fetching radar list... "
       if handle_spinner get_radar_list; then
         printf '%s\n' "done."
         printf '%s\n' "Preparing list dialog window... "
@@ -744,7 +744,7 @@ handle_radar_images() {
 
     'search')
       init
-      printf '%s' "Fetching radar list... "
+      printf '\n%s' "Fetching radar list... "
       if handle_spinner get_radar_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
@@ -1092,6 +1092,7 @@ make_timelapse() {
   # this function handles the pre and post processing for making timelapse images out of an $id that is set inside handle_timelapse_images
   # this function is expected to be called inside handle_timelapse_images after init has been run to set up temporary storage, etc
   # either handle_user_input checks will set the ID into $id, or the $choice result of a dialog box will set the ID into $id
+  echo
 
   # first, set a file lock to ensure that only one instance of a specific timelapse build for an ID can run at a time
   # set fd8 as the lock, as fd8 wraps around this function at the end of the last curly brace to lock runtime on all code inside
