@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.6 - 2023/04/13
+ 
+ * Add choice for Frames Per Second during timelapse build.
+ * Add choice for maximum video resolution during timelapse build.
+ * Add spinner for `convert` during timelapse creation.
+ * Add archiving/compression after successful timelapse build.
+ * Improve `ffmpeg` pixel format.
+ * Improve `ffmpeg` video profile and compression.
+
+---
+
 ## 0.1.5 - 2023/04/04
 
  * Add file locking during timelapse creation, to prevent concurrent ID processing.
