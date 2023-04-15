@@ -22,7 +22,7 @@ for package in "${dependencies[@]}"; do
   dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
 done
 # if $failed array contains something, then report what is missing
-if [[ "${#failed[@]}" -ne 0 ]]; then
+if [[ ${#failed[@]} -ne 0 ]]; then
   printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
   # use `tput` to set the colour
   printf '%s%s' "sudo apt install" "$(tput setaf 3)"
@@ -50,19 +50,19 @@ fi
   # full path only: ${working_directory}
 
   # export some variables to setup specific environments for dependencies
-    ## less
+    # [less]
     # set up a 'global' prompt to use everywhere, including in help docs
     less_prompt="--Use arrows to scroll or '/' to search, press 'Q' when finished--"
-    # set up `less` to use custom prompt and mouse, etc
+    # set up `less` to use custom prompt, etc
     export LESS="--clear-screen --ignore-case --prompt=${less_prompt}"
     # ensure security for `less` is set to disallow shell commands, piping, editing, log files, and tab completion inside `less`
     export LESSSECURE=1
 
-    ## imagemagick
+    # [imagemagick]
     # specify the path where imagemagick should look for policy.xml (bug fix to increase memory limit for converting large satellite images)
     export MAGICK_CONFIGURE_PATH="${working_directory}/.config/ImageMagick/"
 
-    ## dialog
+    # [dialog]
     # set location of config file to use custom colours
     export DIALOGRC="${working_directory}/.config/dialog.cfg"
 
@@ -91,7 +91,7 @@ for file in "${required_files[@]}"; do
 done
 # if $failed array contains something, report what files are missing and what the user can do to fix
 # but only when not running 'update' (to fix the problem of missing files)
-if [[ "${#failed[@]}" -ne 0 ]] && [[ "${1}" != 'update' ]]; then
+if [[ ${#failed[@]} -ne 0 ]] && [[ "${1}" != 'update' ]]; then
   printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs:"
   # iterate over each missing program in 'failed' array
   for file in "${failed[@]}"; do
@@ -182,7 +182,7 @@ interrupted() {
   # ensure the cursor is restored/unhidden
   tput cnorm
   # cleanup junk output if interrupted while spinner is running
-  printf ' \r\n'
+  printf ' \r\n\n'
   # final errexit to trip garbage collection
   exit 6
 }
@@ -413,17 +413,17 @@ display_pretty_timer(){
   S=$((seconds % 60))
 
   # set up "x day(s), x hour(s), x minute(s) and x second(s)" language
-  [[ "$D" -eq "1" ]] && D_tag="day" || D_tag="days"
-  [[ "$H" -eq "1" ]] && H_tag="hour" || H_tag="hours"
-  [[ "$M" -eq "1" ]] && M_tag="minute" || M_tag="minutes"
-  [[ "$S" -eq "1" ]] && S_tag="second" || S_tag="seconds"
+  [[ ${D} -eq 1 ]] && D_tag="day" || D_tag="days"
+  [[ ${H} -eq 1 ]] && H_tag="hour" || H_tag="hours"
+  [[ ${M} -eq 1 ]] && M_tag="minute" || M_tag="minutes"
+  [[ ${S} -eq 1 ]] && S_tag="second" || S_tag="seconds"
 
   # for parts above that exist, parts into an array for sentence formatting
   parts=()
-  [[ "$D" -gt "0" ]] && parts+=("$D $D_tag")
-  [[ "$H" -gt "0" ]] && parts+=("$H $H_tag")
-  [[ "$M" -gt "0" ]] && parts+=("$M $M_tag")
-  [[ "$S" -gt "0" ]] && parts+=("$S $S_tag")
+  [[ ${D} -gt 0 ]] && parts+=("${D} ${D_tag}")
+  [[ ${H} -gt 0 ]] && parts+=("${H} ${H_tag}")
+  [[ ${M} -gt 0 ]] && parts+=("${M} ${M_tag}")
+  [[ ${S} -gt 0 ]] && parts+=("${S} ${S_tag}")
 
   # construct the sentence
   result=''
@@ -431,9 +431,9 @@ display_pretty_timer(){
   for ((currentpart = 0; currentpart < length_of_parts; currentpart++)); do
     result+="${parts[$currentpart]}"
     # if current part is not the last portion of the sentence, append a comma
-    [[ "$currentpart" -ne $((length_of_parts - 1)) ]] && result+=", "
+    [[ ${currentpart} -ne $((length_of_parts - 1)) ]] && result+=", "
     # if current part will be the last part of the sentence, say 'and'
-    [[ "$currentpart" -eq $((length_of_parts - 2)) ]] && result+="and "
+    [[ ${currentpart} -eq $((length_of_parts - 2)) ]] && result+="and "
   done
   printf '%s\n' "${result}"
 }
@@ -473,7 +473,7 @@ display_dialog() {
   fi
   # stop here if building a list failed
   if [[ -z "${headings}" || -z ${options[*]} ]]; then
-    >&2 printf '%s\n' "failed. Couldn't build menu."
+    >&2 printf '%s\n\n' "failed. Couldn't build menu."
     exit 1
   fi
 
@@ -672,7 +672,7 @@ handle_satellite_images() {
       printf '\n%s ' "Fetching satellite list..."
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if ! handle_spinner get_satellite_list; then
-        printf '%s\n' 'failed. Is the Internet connection up?'
+        printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
       # getting list was successful, there is now a file called 'satellites' that contains list of available IDs, prettified with merged bundled csv data
@@ -700,7 +700,7 @@ handle_satellite_images() {
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
         printf '\r%s\r' "                           "
       else
-        printf '%s\n' 'failed. Is the Internet connection up?'
+        printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
       # display the prettified list with `less` and the ability to search and scroll, etc
@@ -740,7 +740,7 @@ handle_radar_images() {
         printf '%s\n' "done."
         printf '%s ' "Preparing list dialog window..."
       else
-        printf '%s\n' 'failed. Is the Internet connection up?'
+        printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
       display_dialog radars "List of Available Radars" "Download" "Select one of the following IDs to start fetching (downloading) that image set."
@@ -758,7 +758,7 @@ handle_radar_images() {
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
         printf '\r%s\r' "                           "
       else
-        printf '%s\n' 'failed. Is the Internet connection up?'
+        printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
       fi
       # display the prettified list with `less` and the ability to search and scroll, etc
@@ -795,7 +795,7 @@ handle_timelapse_images() {
         exit 7
       fi
 
-      # getting list was successful, there is now a file called 'satellites' that contains list of available IDs, prettified with merged bundled csv data
+      # getting list was successful, there is now a file called 'timelapse' that contains list of available IDs, prettified with merged bundled csv data
       # display a pretty dialog box with that list data, and the user can also choose an ID to fetch directly from there, captured in $choice
       # the list file is expected in $1
       # the title of the dialog box is expected in $2
@@ -872,14 +872,15 @@ handle_update() {
     # ensure local 'releases' branch is authoritative by remote
     git branch --set-upstream-to=remotes/origin/releases releases --quiet || exit 8
     # now integrate the fetched changes or say "already up to date"
-    # diffstat colours are lost here, so could wrap in `script` in future
+    # diffstat colours are lost here with redirection, so could use `script` for logging
+    ## script --flush --quiet --command "command"
     git pull --force --rebase --prune --progress --stat 1>&2 || exit 8
     # ensure the HEAD for the local branch is the latest remote release commit
     git reset --hard remotes/origin/releases --quiet || exit 8
     # cleanup any stray files on local that are no longer on remote
     git clean --force 1>&2
   else
-    printf '%s\n' "Updating ${this_name} failed."
+    printf '%s\n\n' "Updating ${this_name} failed."
     exit 4
   fi
 }
@@ -931,7 +932,7 @@ download_satellite_images() {
   printf '\n%s ' "Attempting to fetch ${id} satellite images:"
   # ensure we have recent list first
   if ! handle_spinner get_satellite_list; then
-    printf '%s\n' 'failed. Is the Internet connection up?'
+    printf '%s\n\n' 'failed. Is the Internet connection up?'
     exit 4
   fi
   # is the ID on the list?
@@ -1006,12 +1007,12 @@ download_radar_images() {
   printf '\n%s ' "Attempting to fetch ${id} radar data:"
   # ensure we have recent list first
   if ! handle_spinner get_radar_list; then
-    printf '%s\n' 'failed. Is the Internet connection up?'
+    printf '%s\n\n' 'failed. Is the Internet connection up?'
     exit 4
   fi
   # is the ID on the list?
   if ! grep --quiet --fixed-strings "${id}" --line-regexp radar-IDs.list; then
-    printf 'failed.\n'
+    printf '%s\n' "failed."
     printf "\n'%s' %s\n%s\n\n" "${id}" "ID could not be found as an available radar image set." "Are you sure the ID is correct?"
     printf '%s\n\n' "Try 'bash ${0} radar list' to display a list of available IDs."
     exit 3
