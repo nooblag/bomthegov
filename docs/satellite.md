@@ -25,7 +25,7 @@ From there you'll see the satellite image set ID, a short description about its 
 
 ## DelT
 
-Delete Time (Delt) refers to how many hours an image set will be available on the BOM public archive server, before it is replaced with new imagery. For instance, most satellite image sets have a DelT of '2' and this means that images that are older than 2 hours from the current time will no longer be available on the server. Or said another way, all images from the past 2 hours are currently available.
+Delete Time (Delt) refers to how many hours an image set will be available on the BOM public archive server, before it is replaced with new imagery. For instance, most satellite image sets have a DelT of '24' and this means that images that are older than 24 hours from the current time will no longer be available on the server. Or said another way, all images from the past 24 hours are currently available.
 
 In another example, some legacy satellite image sets at the moment are kept for 504 hours (21 days), and so where the DelT is '504,' this means images from the past "504 hours" are available.
 
@@ -114,4 +114,36 @@ Fetch only images from 2:30am:
 Fetch only images from *any* minute inside twenty past nine:
 
   `bash bomthegov satellite IDE00426 09:2?`
+
+
+
+### Himawari-8 Examples
+
+| ID        | Example Image                                     |
+| --------- | ------------------------------------------------- |
+| IDE00401  | ![IDE00401](assets/IDE00401.jpg)                  |
+| IDE00402  | ![IDE00402](assets/IDE00402.jpg)                  |
+| IDE00403  | ![IDE00403](assets/IDE00403.jpg)                  |
+| IDE00404  | ![IDE00403](assets/IDE00404.jpg)                  |
+| IDE00405  | ![IDE00405](assets/IDE00405.jpg)                  |
+| IDE00406  | ![IDE00406](assets/IDE00406.jpg)                  |
+| IDE00407  | ![IDE00407](assets/IDE00407.jpg)                  |
+| IDE00409  | ![IDE00409](assets/IDE00409.jpg)                  |
+| IDE00411  | ![IDE00411](assets/IDE00411.jpg)                  |
+| IDE00412  | ![IDE00412](assets/IDE00412.jpg)                  |
+| IDE00416  | ![IDE00416](assets/IDE00416.jpg)                  |
+| IDE00420  | ![IDE00420](assets/IDE00420.jpg)                  |
+| IDE00421  | ![IDE00421](assets/IDE00421.jpg)                  |
+| IDE00422  | ![IDE00422](assets/IDE00422.jpg)                  |
+| IDE00423  | ![IDE00423](assets/IDE00423.jpg)                  |
+| IDE00425  | ![IDE00425](assets/IDE00425.jpg)                  |
+| IDE00426  | ![IDE00426](assets/IDE00426.jpg)                  |
+| IDE00427  | ![IDE00427](assets/IDE00427.jpg)                  |
+| IDE00430  | ![IDE00430](assets/IDE00430.jpg)                  |
+| IDE00431  | ![IDE00431](assets/IDE00431.jpg)                  |
+| IDE00432  | ![IDE00432](assets/IDE00432.jpg)                  |
+| IDE00433  | ![IDE00433](assets/IDE00433.jpg)                  |
+| IDE00435  | ![IDE00435](assets/IDE00435.jpg)                  |
+| IDE00436  | ![IDE00436](assets/IDE00436.jpg)                  |
+| IDE00437  | ![IDE00437](assets/IDE00437.jpg)                  |
 
