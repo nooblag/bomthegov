@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.7 - 2023/05/04
+
+ * Improve software update handling.
+ * Add Himawari-8 satellite image examples to documentation.
+ * Code clean-up, minor refactoring.
+
+---
+
 ## 0.1.6 - 2023/04/13
  
  * Add choice for Frames Per Second during timelapse build.
@@ -21,7 +29,7 @@
 
 ## 0.1.4 - 2023/03/29
 
- * Improve software update process.
+ * Improve software update handling.
  * Improve collected images file handling.
  * Introduce compressed archiving.
  * Improve garbage collection.
