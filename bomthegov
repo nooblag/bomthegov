@@ -871,10 +871,10 @@ handle_update() {
     git checkout releases --force --quiet || exit 8
     # ensure local 'releases' branch is authoritative by remote
     git branch --set-upstream-to=remotes/origin/releases releases --quiet || exit 8
-    # now integrate the fetched changes or say "already up to date"
-    # diffstat colours are lost here with redirection, so could use `script` for logging
-    ## script --flush --quiet --command "command"
-    git pull --force --rebase --prune --progress --stat 1>&2 || exit 8
+    # now integrate the fetched changes or say "already up to date" w git pull
+    # diffstat colours are lost here with redirection, so wrap with `script`
+    # redirect output to stderr to capture all screen writes in xtrace log
+    script --quiet --flush --command 'git pull --force --rebase --prune --progress --stat' /dev/null 1>&2 || exit 8
     # ensure the HEAD for the local branch is the latest remote release commit
     git reset --hard remotes/origin/releases --quiet || exit 8
     # cleanup any stray files on local that are no longer on remote
