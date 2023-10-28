@@ -513,7 +513,7 @@ display_dialog() {
   fi
   # reset cursor, clear screen and bump in some empty space
   tput cnorm
-  clear -x
+  clear
   printf '\n'
 }
 
