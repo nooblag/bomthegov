@@ -1268,12 +1268,22 @@ make_timelapse() {
       # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
       # set pixel format to explicitly use jpeg full colour range 'yuvj420p'
       # set rendering preset to very slow for best compression and best quality preset 0
-      # *** ! *** `ffmpeg` requires everything on one long line here, as some versions break when using backslashes between switches for some reason *** ! ***
-      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.jpg" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuvj420p -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
+      # add faststart flags for improved MP4 streaming
+      ffmpeg -r "${fps}" \
+        -pattern_type glob -i "${scratch}/*.jpg" \
+        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+        -pix_fmt yuvj420p -preset veryslow -qp 0 \
+        -movflags +faststart \
+        "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
     elif [[ "${context}" == 'radar' ]]; then
-      ffmpeg -r "${fps}" -pattern_type glob -i "${scratch}/*.png" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -preset veryslow -qp 0 "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
+      ffmpeg -r "${fps}" \
+        -pattern_type glob -i "${scratch}/*.png" \
+        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+        -preset veryslow -qp 0 \
+        -movflags +faststart \
+        "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
     fi
 
   # test if all `ffmpeg` iterations were successful
