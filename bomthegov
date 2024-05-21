@@ -905,7 +905,9 @@ handle_debugging() {
       printf '\n%s\n' "This will turn off debug logging and delete existing logs."
       if handle_question "Are you sure you want to continue?"; then
         # yes, wipe the logs and turn off debugging
-        rm --force "${working_directory}/.config/debug" && rm --force "${logfile}" && printf '%s\n\n' "Code debugging log is off, and logs cleared."
+        if rm --force "${working_directory}/.config/debug" "${logfile}" "${logfile}.1"; then
+          printf '%s\n\n' "Code debugging log is off, and logs cleared."
+        fi
       else
         printf '%s\n\n' "Stopping."
       fi
