@@ -169,20 +169,27 @@ init() {
   # set a temporary storage for this session
   tmp="$(mktemp --directory --tmpdir="${working_directory}/.tmp" .session-XXXXXXXXXXXXXXXX)"
   # set a trap to ensure garbage collection from now on
-  trap 'rm --force --recursive "${tmp}"' SIGINT SIGTERM EXIT
+  trap garbage_collection SIGINT SIGQUIT SIGTERM EXIT
   # set a trap to ensure cursor is reset if interrupted by user and everything stops
   # also bump in a few chars to empty the space if interrupted while spinner running
   # final errexit will also trip garbage collection EXIT trap above
-  trap interrupted SIGINT
+  trap interrupted SIGINT SIGQUIT SIGTERM
   # set the temporary storage as the working directory
   cd "${tmp}" || exit 2
+}
+
+garbage_collection() {
+  printf '%s ' "Cleaning up..."
+  if handle_spinner rm --force --recursive "${tmp}"; then
+    printf '%s\n\n' 'done.'
+  fi
 }
 
 interrupted() {
   # ensure the cursor is restored/unhidden
   tput cnorm
   # cleanup junk output if interrupted while spinner is running
-  printf ' \r\n\n'
+  printf ' \r\n%s\n' 'Interrupted.'
   # final errexit to trip garbage collection
   exit 6
 }
