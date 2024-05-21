@@ -1274,23 +1274,28 @@ make_timelapse() {
     # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
     if [[ "${context}" == 'satellite' ]]; then
       # capture the exit code of `ffmpeg` into the prepared array for success checking later
-      # `-vf` to add padding to avoid potential "height not divisible by 2" crashes
-      # set pixel format to explicitly use jpeg full colour range 'yuvj420p'
-      # set rendering preset to very slow for best compression and best quality preset 0
-      # add faststart flags for improved MP4 streaming
-      ffmpeg -r "${fps}" \
+      # `-vf` to add padding to avoid potential "height not divisible by 2" crashes with the input
+      # `-vsync vfr` = variable frame rate from fps set in `-r`
+      # set pixel format to explicitly use jpeg full colour range 'yuvj420p' to avoid complaints about that during rendering
+      # set rendering preset to very slow for best compression profile and set 'Constant Rate Factor' to a nice middle-ground of 16 (0=lossless, but huge filesize)
+      # faststart flags added for improved MP4 streaming
+      ffmpeg \
         -pattern_type glob -i "${scratch}/*.jpg" \
         -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -pix_fmt yuvj420p -preset veryslow -qp 0 \
+        -r "${fps}" -vsync vfr \
+        -pix_fmt yuvj420p -c:v libx265 \
+        -preset veryslow -crf 16 \
         -movflags +faststart \
         "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
     elif [[ "${context}" == 'radar' ]]; then
-      ffmpeg -r "${fps}" \
+      ffmpeg \
         -pattern_type glob -i "${scratch}/*.png" \
         -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -preset veryslow -qp 0 \
+        -r "${fps}" -vsync vfr \
+        -c:v libx265 \
+        -preset veryslow -crf 16 \
         -movflags +faststart \
         "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
     fi
