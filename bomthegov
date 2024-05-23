@@ -504,8 +504,8 @@ display_dialog() {
       dialog --clear --output-fd 1 \
              --backtitle "${this_name_and_version_and_author}" --title "${2}" --ok-label " ${3} " --menu "${menu}" ${height} ${width} ${choice_height} "${options[@]}" \
              --backtitle "${this_name_and_version_and_author}" --title "Video Resolution" --radiolist "\nSelect the video resolution limit (spacebar to change):" 15 60 5 \
-                '4096x2160' '4K Cinema High Definition' 'off' \
-                '1920x1080' '1080p High Definition' 'on' \
+                '4096x2160' '4K Cinema High Definition' 'on' \
+                '1920x1080' '1080p High Definition' 'off' \
                 '1280x720' '720p Half-size HD' 'off' \
                 '768x432' 'Standard Digital Video' 'off' \
                 '480x270' 'Small screens, very low resolution' 'off' \
@@ -1236,8 +1236,8 @@ make_timelapse() {
   # build array of files found to process
   mapfile -t files < timelapse-files.list
 
-  # set choice settings if custom settings are not set to default to 1080p 25fps
-  [[ -z ${resolution} ]] && resolution='1920x1080'
+  # set defaults if custom settings are not set: default to 4K, 25fps
+  [[ -z ${resolution} ]] && resolution='4096x2160'
   [[ -z ${fps} ]] && fps=25
 
   # switch to the images folder for the ID
