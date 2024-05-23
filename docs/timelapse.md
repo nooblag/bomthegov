@@ -50,7 +50,7 @@ Previously prepared timelapse videos will not be deleted in a reset.
 
 ## Technical details
 
-The default maximum video resolution and Frames Per Second (FPS) for timelapse videos is 1920x1080 (full HD) at 25fps.
+The default maximum video resolution and Frames Per Second (FPS) for timelapse videos is 4096x2160 (4K) at 25fps.
 
 All timelapse videos export to MP4 video format, which should make them streamable on the web, and viewable on mobile devices.
 
