@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.9 - 2024/05/27
+ * Improve cleanup when turning debugging off.
+ * Improve traps and garbage collection.
+ * Move to H.265 rendering with Constant Rate Factor compression.
+ * Default to 4K, 25fps.
+
+---
+
+## 0.1.8 - 2024/05/17
+ * Improve clear scrollback.
+ * Improve ffmpeg construction.
+
+---
+
 ## 0.1.7 - 2023/05/04
 
  * Improve software update handling.
