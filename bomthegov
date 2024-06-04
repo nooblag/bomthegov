@@ -1239,6 +1239,13 @@ make_timelapse() {
   # set defaults if custom settings are not set: default to 4K, 25fps
   [[ -z ${resolution} ]] && resolution='4096x2160'
   [[ -z ${fps} ]] && fps=25
+  # set some bitrates based on resolution
+  case ${resolution} in
+    '4096x2160') bitrate='24M';;
+    '1920x1080') bitrate='18M';;
+    '1280x720') bitrate='4M';;
+    *) bitrate='2M';;
+  esac
 
   # switch to the images folder for the ID
   cd "${working_directory}/images/${context}/${id}/" || exit 2
@@ -1266,6 +1273,8 @@ make_timelapse() {
 
   # ensure directory to store created timelapse exists
   mkdir --parents "${working_directory}/timelapse" || exit 2
+  # enter scratch space for ffmpeg globbing
+  cd "${scratch}" || exit 2
 
   # now make mp4 video timelapse!
   printf '\n%s ' "Making MP4..."
@@ -1281,22 +1290,38 @@ make_timelapse() {
       # `-crf 28` 'Constant Rate Factor' defaults to 28 (0=lossless, but huge filesize)
       # faststart flags added for improved MP4 streaming
       ffmpeg \
-        -pattern_type glob -i "${scratch}/*.jpg" \
+        -pattern_type glob -i "*.jpg" \
         -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
         -r "${fps}" -vsync vfr \
-        -pix_fmt yuvj420p -c:v libx265 \
+        -pix_fmt yuvj420p -c:v libx264 \
         -preset veryslow \
+        -b:v "${bitrate}" -pass 1 -an -f null /dev/null; ffmpeg_result+=(${?}) && \
+      ffmpeg \
+        -pattern_type glob -i "*.jpg" \
+        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+        -r "${fps}" -vsync vfr \
+        -pix_fmt yuvj420p -c:v libx264 \
+        -preset veryslow \
+        -b:v "${bitrate}" -pass 2 \
         -movflags +faststart \
         "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
     elif [[ "${context}" == 'radar' ]]; then
       ffmpeg \
-        -pattern_type glob -i "${scratch}/*.png" \
+        -pattern_type glob -i "*.png" \
         -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
         -r "${fps}" -vsync vfr \
-        -c:v libx265 \
+        -c:v libx264 \
         -preset veryslow \
+        -b:v "${bitrate}" -pass 1 -an -f null /dev/null; ffmpeg_result+=(${?}) && \
+      ffmpeg \
+        -pattern_type glob -i "*.png" \
+        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+        -r "${fps}" -vsync vfr \
+        -c:v libx264 \
+        -preset veryslow \
+        -b:v "${bitrate}" -pass 2 \
         -movflags +faststart \
         "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
     fi
