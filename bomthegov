@@ -190,6 +190,8 @@ interrupted() {
   tput cnorm
   # cleanup junk output if interrupted while spinner is running
   printf ' \r\n%s\n' 'Interrupted.'
+  # kill all child processes
+  pkill --parent ${$}
   # final errexit to trip garbage collection
   exit 6
 }
