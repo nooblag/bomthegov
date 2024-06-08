@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.10 - 2024/06/08
+ * Improve interrupted cleanup.
+ * Revert `ffmpeg` to H.264 for browser support, and introduce two-pass encoding.
+
+---
+
 ## 0.1.9 - 2024/05/27
  * Improve cleanup when turning debugging off.
  * Improve traps and garbage collection.
@@ -10,7 +16,7 @@
 
 ## 0.1.8 - 2024/05/17
  * Improve clear scrollback.
- * Improve ffmpeg construction.
+ * Improve `ffmpeg` construction.
 
 ---
 
