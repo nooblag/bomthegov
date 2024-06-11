@@ -669,6 +669,8 @@ handle_spinner() {
     display_spinner ${pid}
     wait ${pid}; exit_code=${?}
     return ${exit_code}
+  else
+    return 3
   fi
 }
 
