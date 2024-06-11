@@ -26,6 +26,20 @@ and **bomthegov** will start building a timelapse for that ID immediately/uninte
 
 
 
+## Non-interactive timelapse builds
+
+You can set up **bomthegov** to build timelapse videos non-interactively by specifying the ID of the image set, along with the answer to provide to all interactive questions.
+
+For example, the line below will build a timelapse for `IDE00105` and set the answer to 'yes' for any interactive questions, and then automatically and non-interactively build the timelapse video with the default technical specifications, as outlined at the end of this doc:
+
+  `bash bomthegov timelapse IDE00105 yes`
+
+*Note:* If any **bomthegov** arguments are invoked as a cronjob (not just timelapse arguments), the default answer to any question will always be 'no'.
+
+Currently, non-interactive/auto mode is only available for timelapse builds. The command does not apply to image fetching, software updates, or image storage resets.
+
+
+
 ## Process
 
 **bomthegov** uses the software package `imagemagick` to convert satellite and radar images into usable video frames, and then passes those frames to a video encoding tool called `ffmpeg` to assemble a timelapse video.
@@ -52,5 +66,23 @@ Previously prepared timelapse videos will not be deleted in a reset.
 
 The default maximum video resolution and Frames Per Second (FPS) for timelapse videos is 4096x2160 (4K) at 25fps.
 
-All timelapse videos export to MP4 video format, which should make them streamable on the web, and viewable on mobile devices.
+HD, 720p, and lower resolutions are available in interactive mode by running:
+
+  `bash bomthegov timelapse list`
+
+which will guide you through the settings interactively.
+
+*Note:* The maximum video resolution size is only available from source images that are larger than that resolution---i.e. the source imagery is only downscaled, it is not upscaled. So for example, if the imagery from a satellite or radar is originally in HD, then HD will be the maximum video resolution, even if 4K is selected.
+
+For instance, most of the `IDE004xx` satellites are able to be timelapsed in 4K, many of the other satellite and radar image sets aren't.
+
+All timelapse videos export to MP4 video format, which should make them streamable on the web, and viewable on mobile devices. The MP4 codec is H.264 (AVC) which is supported on a wide range of devices and browsers.
+
+The maximum video bitrates for each resolution size are:
+  * 4K at 24mbps
+  * HD at 18mbps
+  * 720p at 4mbps
+  * anything else at 2mbps
+
+Timelapses are encoded in two-passes at these bitrates to ensure the best outcome between the highest image quality versus file-size compression.
 
