@@ -632,6 +632,10 @@ handle_user_input() {
     'timelapse')
       if strict_test_radar_id "${user_input}" || strict_test_satellite_id "${user_input}"; then
         id="${user_input}"
+        # get auto mode, if invoked
+        # tests later as either saying 'yes' or 'no' to any interactive questions during timelapse build
+        # e.g. 'bash bomthegov timelapse <ID> no'
+        auto="${3,,}" # convert to lowercase *** ! important ! ***
       else
         printf "\n'%s' %s\n" "${user_input}" "is not a valid ID."
         printf '%s\n\n' "Try 'bash ${0} timelapse list' to display a list of available IDs."
@@ -645,8 +649,19 @@ handle_question() {
   # display a question and return zero status if 'Y' or 'y' matched, which will continue
   # $1 is the contents of question passed to this function
   # i.e. usage: handle_question "Continue?" && dostuff
-  read -r -p "${1} [y/N] " answer
-  [[ ${answer} == 'Y' || ${answer} == 'y' ]] && return 0 || return 1
+  # only ask questions if this has a tty, otherwise always assume no for everything
+  if [[ "${cron}" -eq 1 ]]; then
+    return 1
+  # handle timelapse 'auto' mode
+  # the switch to always answer 'no' to any interactive questions in handle_user_input() has been setup
+  elif [[ "${auto}" == 'no' ]]; then
+    return 1
+  elif [[ "${auto}" == 'yes' ]]; then
+    return 0
+  else
+    read -r -p "${1} [y/N] " answer
+    [[ ${answer} == 'Y' || ${answer} == 'y' ]] && return 0 || return 1
+  fi
 }
 
 handle_cron_sleep() {
@@ -842,7 +857,7 @@ handle_timelapse_images() {
 
     *)
       init
-      handle_user_input "${1}" "${2}"
+      handle_user_input "${1}" "${2}" "${3}"
       # bump in some empty space before building timelapse
       printf '\n'
       make_timelapse
