@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.11 - 2024/06/11
+ * Improve spinner return-code logic.
+ * Disable STDIN from interrupting `ffmpeg` during timelapse encoding.
+
+---
+
 ## 0.1.10 - 2024/06/08
  * Improve interrupted cleanup.
  * Revert `ffmpeg` to H.264 for browser support, and introduce two-pass encoding.
