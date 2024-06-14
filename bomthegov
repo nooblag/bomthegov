@@ -380,6 +380,7 @@ display_spinner() {
   # set up a spinner for long-expected processes so the user can visually see the script is still working away
   # takes the pid of the process passed to the background and captured in $1, and displays a spinner until that process completes
   # solution derived with thanks to @david_rankin (https://stackoverflow.com/questions/47234947)
+  # for refs to ANSI escape codes pulled from various sources see: https://en.wikipedia.org/wiki/ANSI_escape_code
   if [[ ${cron} -ne 1 ]]; then
     local proc="${1}"
     local delay="0.15"
@@ -392,8 +393,8 @@ display_spinner() {
       printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
       printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
     done
-    # return to normal by wiping out the spinner's combined character length (3 spaces)
-    printf '\033[s\033[u   \033[u\033[0m'
+    # return to normal by wiping out everything until the end of the current line
+    printf '\033[0K'
     # restore the cursor
     tput cnorm
     return 0
@@ -1146,7 +1147,8 @@ flatten_images() {
 
     # now actually do the conversion
     for file in "${files[@]}"; do
-      printf '\r%s %d%s ' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
+      # use '\033[0K' ANSI escape to 'clear everything until the end of the line'
+      printf '\r%s %d%s \033[0K' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
       # get the name of the current file only by stripping off its path
       current_filename="${file##*/}"
       # tif files from bom have multiple layers, and if just using filenames, imagemagick splits those layers into multiple files which is unwanted
