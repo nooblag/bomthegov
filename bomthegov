@@ -1155,18 +1155,20 @@ flatten_images() {
       # so use [0] after file name which `convert` interprets as "get the first layer only"
       # ensure we are converting to jpegs by removing current filename's extension and substituting .jpg using parameter expansion
       # also do `convert` quietly to avoid any warning messages that we might encounter about tif layers that are now irrelevant
-      # capture the exit code of `convert` into its prepared array for success checking later
       # scale to requested resolution only if image is larger, i.e. `>` (which needs to be escaped from the shell with a backslash)
-      convert -quiet -scale "${resolution}"\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
-        # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
-        # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
-        # use the served file metadata parsed through `date` to make our timestamp
-        # the text passed to `convert` to be created, is in the 'label' argument
-        if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
-          convert "${scratch}/${current_filename%.*}.jpg" \
-            -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"${this_name} - $(date --utc --reference "${current_filename}")" \
-            -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
-        fi
+      # himawari satellite images have no timestamps on them, so if handling their IDs here, append that information to current frame
+      # IDs that are currently known are in the range IDE004xx, i.e. 401 to 437 so if we get a match on that, add our own timestamp label
+      # use the served file metadata parsed through `date` to make our timestamp
+      # the text passed to `convert` to be created, is in the 'label' argument
+      # capture the exit code of `convert` into its prepared array for success checking later
+      if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
+        convert -quiet \
+          -scale "${resolution}"\> "${file}[0]" \
+          -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"${this_name} - $(date --utc --reference "${current_filename}")" \
+          -gravity center -append "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
+      else
+        convert -quiet -scale "${resolution}"\> "${file}[0]" "${scratch}/${current_filename%.*}.jpg"; convert_result+=(${?})
+      fi
       # advance the progress meter
       ((count++))
     done
