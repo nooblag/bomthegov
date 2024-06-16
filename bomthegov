@@ -329,7 +329,17 @@ display_timelapse_help() {
 	Available options:
 	  list          Display a list of collected image sets, ready for timelapsing.
 	  <id>          Make a timelapse video for a specific radar or satellite ID.
+	  <id> <auto>   Invoke non-interactive mode when building a timelapse
+	                for a specific ID. See more details on this mode below.
 	  help          Display detailed help about making timelapse videos.
+
+	Auto:
+	  Set the answer to either 'yes' or 'no' as the response to any questions asked
+	  during timelapse building, so invoke non-interactive mode.
+	  Example:
+	    'bash ${0} timelapse ide00435 yes'
+	  will automatically and non-interactively build a video for that image set
+	  and answer 'yes' to any questions that may be asked during the build.
 
 	end_cat
 }
