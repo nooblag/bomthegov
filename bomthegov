@@ -1137,6 +1137,11 @@ download_radar_images() {
 flatten_images() {
   # called from inside make_timelapse to display spinner against
   # prepare each image as video frames
+  # set up a counter for 'percentage complete' tracking
+  count=1
+  # set up array to capture exit codes from `convert` during each iteration
+  # this is tested at the end to check for any runtime errors
+  convert_result=()
   # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
   if [[ "${context}" == 'satellite' ]]; then
     # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
@@ -1274,11 +1279,6 @@ make_timelapse() {
   cd "${working_directory}/images/${context}/${id}/" || exit 2
   # ensure we have a scratch storage ready for current conversion to be temporarily saved into
   scratch="$(mktemp --directory --tmpdir="${tmp}" .timelapse-XXXXXXXX)"
-  # set up a counter for 'percentage complete' tracking in next steps
-  count=1
-  # set up arrays to capture exit codes from `convert` and `ffmpeg` during each iteration, as we'll test these later to check if any errors are encountered
-  convert_result=()
-  ffmpeg_result=()
   # set stopwatch to keep track of total run time for assembling timelapse, starting from now
   timer_start=$(date +%s)
 
@@ -1301,6 +1301,9 @@ make_timelapse() {
 
   # now make mp4 video timelapse!
   printf '\n%s ' "Making MP4..."
+  # set up array to capture exit codes from `ffmpeg` during each iteration
+  # this is tested at the end to check for any runtime errors
+  ffmpeg_result=()
   # wait a short moment first for disk caching
   sleep 1
     # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
