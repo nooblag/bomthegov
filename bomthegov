@@ -186,12 +186,12 @@ garbage_collection() {
 }
 
 interrupted() {
-  # ensure the cursor is restored/unhidden
-  tput cnorm
-  # cleanup junk output if interrupted while spinner is running
-  printf ' \r\n%s\n' 'Interrupted.'
   # kill all child processes
   pkill --parent ${$}
+  # cleanup to end of the line if interrupted while spinner is running using ANSI '\033[0K'
+  printf '\033[0K\n%s\n' 'Interrupted.'
+  # if display is open (fd0) = this has a tty, so ensure any cursor or terminal changes are reset back to normal
+  [[ -t 0 ]] && stty sane; tput cnorm
   # final errexit to trip garbage collection
   exit 6
 }
