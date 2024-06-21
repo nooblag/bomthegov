@@ -91,7 +91,7 @@ for file in "${required_files[@]}"; do
 done
 # if $failed array contains something, report what files are missing and what the user can do to fix
 # but only when not running 'update' (to fix the problem of missing files)
-if [[ ${#failed[@]} -ne 0 ]] && [[ "${1}" != 'update' ]]; then
+if [[ ${#failed[@]} -ne 0 ]] && [[ ${1} != 'update' ]]; then
   printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs:"
   # iterate over each missing program in 'failed' array
   for file in "${failed[@]}"; do
@@ -106,7 +106,7 @@ fi
 ## set up debug logging
 # first determine if script is running interactively or as a scheduled job by checking for an interactive tty
 # if we get something other than zero, the display (fd0) is not open = this is running as an automated job
-! [[ -t 0 ]] && cron=1 && process='no-tty: '
+[[ ! -t 0 ]] && cron=1 && process='no-tty: '
 # set log file path and name
 logfile="${working_directory}/.xtrace.log"
   # if the debug config setting file exists, switch on logging
@@ -507,7 +507,7 @@ display_dialog() {
   # now display the dialog
   # hide the cursor first
   tput civis
-  if [[ "${1}" == 'timelapse' ]]; then
+  if [[ ${1} == 'timelapse' ]]; then
     # ask additional questions to customise video frame size and fps
     # breakout `dialog` from inside the choice array by redirecting stdout and stderr to the current tty so we can actually see it with `--output-fd 1`
     # frame-size: `--radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>`
@@ -603,14 +603,14 @@ strict_test_satellite_id() {
   local user_input="${1}"
   # satellite IDs should start with "IDE" and then 5 numbers (8 characters max in total)
   # if we match that format, return 0 for success, else return 3 for "problem with user input" code
-  [[ "${user_input}" =~ ^IDE[0-9]{5}$ ]] && id_type='satellite' && return 0 || return 3
+  [[ ${user_input} =~ ^IDE[0-9]{5}$ ]] && id_type='satellite' && return 0 || return 3
 }
 
 strict_test_radar_id() {
   local user_input="${1}"
   # radar IDs should start with 'IDR' and contain at least 3 alpha/numeric characters, max of 5 (8 characters max in total)
   # expect A B C D or I
-  [[ "${user_input}" =~ ^IDR[0-9|A-D|I]{3,5}$ ]] && id_type='radar' && return 0 || return 3
+  [[ ${user_input} =~ ^IDR[0-9|A-D|I]{3,5}$ ]] && id_type='radar' && return 0 || return 3
 }
 
 handle_user_input() {
@@ -661,13 +661,13 @@ handle_question() {
   # $1 is the contents of question passed to this function
   # i.e. usage: handle_question "Continue?" && dostuff
   # only ask questions if this has a tty, otherwise always assume no for everything
-  if [[ "${cron}" -eq 1 ]]; then
+  if [[ ${cron} -eq 1 ]]; then
     return 1
   # handle timelapse 'auto' mode
   # the switch to always answer 'no' to any interactive questions in handle_user_input() has been setup
-  elif [[ "${auto}" == 'no' ]]; then
+  elif [[ ${auto} == 'no' ]]; then
     return 1
-  elif [[ "${auto}" == 'yes' ]]; then
+  elif [[ ${auto} == 'yes' ]]; then
     return 0
   else
     read -r -p "${1} [y/N] " answer
@@ -682,7 +682,7 @@ handle_cron_sleep() {
   # 2) avoid network/disk congestion at local end for similar conditions, and
   # 3) atomise the initialisation time of multiple concurrent cronjobs at share the same pattern
   # e.g. if multiple jobs start at every 10 min interval (like for satellites) we won't get as dramatic i/o inrush
-  [[ "${cron}" -eq 1 ]] && sleep "$(shuf --input-range 0-60 --head-count 1)"
+  [[ ${cron} -eq 1 ]] && sleep "$(shuf --input-range 0-60 --head-count 1)"
 }
 
 handle_spinner() {
@@ -991,7 +991,7 @@ download_satellite_images() {
   cd "${working_directory}/images/satellite/${id}/" || exit 2
 
   # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
-  if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+  if [[ ${3} =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
     # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
     # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
     # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
@@ -1066,7 +1066,7 @@ download_radar_images() {
 
   # get the radar images
   # if we have a valid HH:MM globbing argument in ${3}, narrow the `wget` glob to that
-  if [[ "${3}" =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
+  if [[ ${3} =~ ^([01][0-9]|2[0-3]):([0-5][0-9]|[0-5]\?|\?[0-9]|\?\?)$ ]]; then
     # wrap `wget` in `flock` to lock the working directory so we don't get race condition when running this as a cronjob
     # if we get network problems with `wget`, its exit code should be 4 (in the wrapped flock command), otherwise if we encounter a problem with `flock`, exit 5
     # pass the `flock` exit code to display_flock_error() in order to either show a pretty message if encountering parallel fetching, otherwise fail silently
@@ -1103,7 +1103,7 @@ download_radar_images() {
   # waaargh, not sure why bom the gov is messy here?
 
   # so, if dealing with the national rainfall radar (IDR00004)
-  if [[ "${id}" == 'IDR00004' ]]; then
+  if [[ ${id} == 'IDR00004' ]]; then
     # hardcode getting a known static national background image
     # use the static one they use on http://www.bom.gov.au/products/national_radar_sat.loop.shtml
     # i.e. IDE00035 (note: *35* not *135*)
@@ -1118,7 +1118,7 @@ download_radar_images() {
       --url 'http://www.bom.gov.au/products/radar_transparencies/IDE00035.background.png' || exit 4
 
   # then if the ID ends in A B C D or I
-  elif [[ "${id}" =~ [A-D|I]$ ]]; then
+  elif [[ ${id} =~ [A-D|I]$ ]]; then
     # the rainfall (A to D) and doppler wind (I) sets all use 128km background, i.e. layers of view '3'
     # so strip off the last character of the ID and force the FTP pattern to be the '3' (128km) view by appending it to the pattern
     # *** ! *** `wget` is weird because it writes file download progress to stderr, so explicitly redirect that here to stdout *** ! ***
@@ -1153,7 +1153,7 @@ flatten_images() {
   # this is tested at the end to check for any runtime errors
   convert_result=()
   # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
-  if [[ "${context}" == 'satellite' ]]; then
+  if [[ ${context} == 'satellite' ]]; then
     # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
     # largest known satellite image sets are IDE0409 with 0.5km per pixel resolution: results in image sizes of 24444 x 16667 @ 96dpi, which is ~408 megapixels
     # default megapixel limit for imagemagick is 128MP, and so conversion crashes with defaults when dealing with IDE0409 (thanks for the bug report @matt_brown!)
@@ -1176,7 +1176,7 @@ flatten_images() {
       # use the served file metadata parsed through `date` to make our timestamp
       # the text passed to `convert` to be created, is in the 'label' argument
       # capture the exit code of `convert` into its prepared array for success checking later
-      if [[ "${id}" =~ ^IDE004[0-3][0-9]$ ]]; then
+      if [[ ${id} =~ ^IDE004[0-3][0-9]$ ]]; then
         convert -quiet \
           -scale "${resolution}"\> "${file}[0]" \
           -background black -fill white -font Ubuntu-Mono -pointsize 18 label:"${this_name} - $(date --utc --reference "${current_filename}")" \
@@ -1189,15 +1189,15 @@ flatten_images() {
     done
 
   # if we're making a timelapse of a radar, assemble its layers
-  elif [[ "${context}" == 'radar' ]]; then
+  elif [[ ${context} == 'radar' ]]; then
     # order of layers: legend -> geographical background -> topography -> location names -> radar data range circle -> current rain radar data
     # determine what legend is required first, based on it's ID structure
       # if ID ends in a number, it's a rainfields data; use legend 0 (rain rate scale, light -> heavy)
-      [[ "${id}" =~ [0-9]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.0.png"
+      [[ ${id} =~ [0-9]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.0.png"
       # if ID ends in A B C or D then it's a rainfields data; use legend 1 (rainfall in mm)
-      [[ "${id}" =~ [A-D]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.1.png"
+      [[ ${id} =~ [A-D]$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.1.png"
       # if ID ends in I it's doppler wind data; use legend 2 (colour codes for towards/away from radar)
-      [[ "${id}" =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
+      [[ ${id} =~ I$ ]] && legend="${working_directory}/images/radar/legend/IDR.legend.2.png"
 
     # check layers and legend files are available as we expect before further processing
     if [[ ! -s "${legend}" || $(find layers -type f -not -empty -print | wc --lines) -eq 0 ]]; then
@@ -1210,7 +1210,7 @@ flatten_images() {
     # if the current radar ID is the national radar, it does not have topography, locations, or range layers so don't process them (eyeroll)
     # otherwise, it's a radar as "usual" so assemble those layers
     # such a messy bom
-    if [[ "${id}" == 'IDR00004' ]]; then
+    if [[ ${id} == 'IDR00004' ]]; then
       # the conversion loop should exclude layers that don't exist for national radar
       for file in "${files[@]}"; do
         printf '\r%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
@@ -1242,7 +1242,7 @@ flatten_images() {
   # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
   # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
   # so, only need to check for the existence of '1' anywhere
-  if [[ "${convert_result[*]}" =~ 1 ]]; then
+  if [[ ${convert_result[*]} =~ 1 ]]; then
     printf '\n\n%s\n%s\n\n' "Error(s) occurred during image preparation." "Creating timelapse failed. Stopping."
     exit 1
   fi
@@ -1317,7 +1317,7 @@ make_timelapse() {
   # wait a short moment first for disk caching
   sleep 1
     # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
-    if [[ "${context}" == 'satellite' ]]; then
+    if [[ ${context} == 'satellite' ]]; then
       # capture the exit code of `ffmpeg` into the prepared array for success checking later
       # `-vf` to add padding to avoid potential "height not divisible by 2" crashes with the input
       # `-vsync vfr` = variable frame rate from fps set in `-r`
@@ -1345,7 +1345,7 @@ make_timelapse() {
         "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
     # if we're making a timelapse of a radar, we use the assembled png files
-    elif [[ "${context}" == 'radar' ]]; then
+    elif [[ ${context} == 'radar' ]]; then
       ffmpeg \
         -stats -nostdin \
         -pattern_type glob -i "*.png" \
