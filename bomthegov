@@ -387,13 +387,18 @@ display_flock_error() {
 
 display_spinner() {
   # set up a spinner for long-expected processes so the user can visually see the script is still working away
-  # takes the pid of the process passed to the background and captured in $1, and displays a spinner until that process completes
-  # solution derived with thanks to @david_rankin (https://stackoverflow.com/questions/47234947)
-  # for refs to ANSI escape codes pulled from various sources see: https://en.wikipedia.org/wiki/ANSI_escape_code
+  # takes the PID of the process passed to the background and captured in $1, and displays a spinner until that process completes
+  # initial solution iterated on with thanks to @david_rankin (https://stackoverflow.com/questions/47234947)
+  # and for refs to ANSI escape codes pulled from various sources: https://en.wikipedia.org/wiki/ANSI_escape_code
   if [[ ${cron} -ne 1 ]]; then
     local proc="${1}"
     local delay="0.15"
-    # get the cursor out of the way, by hiding it
+    # hide user input
+    # 'icanon' disables special characters 'erase, kill, werase, rprnt'
+    # never timeout the read line blackhole that vacuums up all user input (time 0)
+    # and 'min 0' sets zero characters as the minimum required for a completed read
+    stty -echo -icanon time 0 min 0
+    # hide the cursor
     tput civis
     # do the spinning as long as the process is active
     while [[ -d /proc/${proc} ]]; do
@@ -402,9 +407,10 @@ display_spinner() {
       printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
       printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
     done
-    # return to normal by wiping out everything until the end of the current line
-    printf '\033[0K'
-    # restore the cursor
+    # while spinning, vacuum up any user input into a blackhole by successfully doing nothing with the read constantly
+    while read; do true; done
+    # reset the terminal to normal
+    stty sane
     tput cnorm
     return 0
   fi
