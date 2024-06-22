@@ -48,6 +48,9 @@ fi
   # relative path and file name: ${0}
   # full path and file name: ${fullpath_and_filename}
   # full path only: ${working_directory}
+  # determine if script is running interactively or as a scheduled job by checking for an interactive tty
+  # if the display (fd0) is not open = this is running as an automated job
+  [[ ! -t 0 ]] && cron=1
 
   # export some variables to setup specific environments for dependencies
     # [less]
@@ -104,59 +107,55 @@ fi
 
 
 ## set up debug logging
-# first determine if script is running interactively or as a scheduled job by checking for an interactive tty
-# if we get something other than zero, the display (fd0) is not open = this is running as an automated job
-[[ ! -t 0 ]] && cron=1 && process='no-tty: '
-# set log file path and name
 logfile="${working_directory}/.xtrace.log"
-  # if the debug config setting file exists, switch on logging
-  if [[ -e "${working_directory}/.config/debug" ]]; then
-    # if the logfile exists and is larger than 6 megabytes, quietly rotate it
-    find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
-    # now handle log file headings
-    # get the pid of this instance
-    pid=${$}
-    # return the command name that invoked this script using `ps`
-    # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
-    # $$ is the process id of the script that is being run
-    # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
-    # `--format comm=` omits default headers and sets output to return 'command name only'
-    process+="$(ps --quick-pid ${pid} --format comm=) "
-    # append the name and path of here
-    process+="${0}"
-    # if any arguments have been passed here, append them to the line too
-    # because arrays implicitly concatenate inside [[ ]], we use explicit * here instead of @ for the positional parameters
-    # then in the quoted string, use "$*" to expand the positional parameters to a single word, separated by the set Internal Field Separator in $IFS
-    [[ -n ${*} ]] && process+=" ${*}"
-    # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
-    # print the appropriate heading
-    if [[ -s "${logfile}" ]]; then
-      # log already exists so bump with some whitespace before logging this session
-      printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" >> "${logfile}"
-    else
-      # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
-      printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" > "${logfile}"
-    fi
-    # now actually set up the process to write xtrace and stderr output to a log file for debugging
-    # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
-    # so progress through how we want to handle each:
-      # [stderr]
-      # use `tee` to display stderr on the console as normal, but also write those errors to the logfile
-      # note the format of spaces here: 2> as direction for stderr, *then* the syntax of ">(process substitution as if it were a file)"
-      exec 2> >(tee --append "${logfile}")
-      # [xtrace]
-      # file descriptors 3 through 9 are not set, so use the last fd, 9, to write anything sent there to the log file only
-      # note the *lack of spaces* here to mean fd9 *appends* to file ;)
-      exec 9>> "${logfile}"
-    # now tell bash to write its 'xtrace' output to fd9 which we've opened above
-    BASH_XTRACEFD=9
-    # rewrite $P4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
-    # note the use of single quotes here because we don't want parameter expansion to happen yet, we want to pass the vars to `exec` to expand at the moment the prompt writes
-    # display format is [HOUR:MIN:SEC.NANOSEC] LINENO: ...
-    PS4=' [$(date +%H:%M:%S.%N)] [${pid}] ${LINENO}: '
-    # finally, turn on bash 'debug' which makes all of the above ultimately meaningful
-    set -o xtrace
+# if the debug config setting file exists, switch on logging
+if [[ -e "${working_directory}/.config/debug" ]]; then
+  # if the logfile exists and is larger than 6 megabytes, quietly rotate it
+  find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
+  # now handle log file headings
+  # get the pid of this instance
+  pid=${$}
+  # return the command name that invoked this script using `ps`
+  # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
+  # $$ is the process id of the script that is being run
+  # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
+  # `--format comm=` omits default headers and sets output to return 'command name only'
+  process="$(ps --quick-pid ${pid} --format comm=) "
+  # append the name and path of here
+  process+="${0}"
+  # if any arguments have been passed here, append them to the line too
+  # because arrays implicitly concatenate inside [[ ]], we use explicit * here instead of @ for the positional parameters
+  # then in the quoted string, use "$*" to expand the positional parameters to a single word, separated by the set Internal Field Separator in $IFS
+  [[ -n ${*} ]] && process+=" ${*}"
+  # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
+  # print the appropriate heading
+  if [[ -s "${logfile}" ]]; then
+    # log already exists so bump with some whitespace before logging this session
+    printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" >> "${logfile}"
+  else
+    # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
+    printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" > "${logfile}"
   fi
+  # now actually set up the process to write xtrace and stderr output to a log file for debugging
+  # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
+  # so progress through how we want to handle each:
+    # [stderr]
+    # use `tee` to display stderr on the console as normal, but also write those errors to the logfile
+    # note the format of spaces here: 2> as direction for stderr, *then* the syntax of ">(process substitution as if it were a file)"
+    exec 2> >(tee --append "${logfile}")
+    # [xtrace]
+    # file descriptors 3 through 9 are not set, so use the last fd, 9, to write anything sent there to the log file only
+    # note the *lack of spaces* here to mean fd9 *appends* to file ;)
+    exec 9>> "${logfile}"
+  # now tell bash to write its 'xtrace' output to fd9 which we've opened above
+  BASH_XTRACEFD=9
+  # rewrite $P4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
+  # note the use of single quotes here because we don't want parameter expansion to happen yet, we want to pass the vars to `exec` to expand at the moment the prompt writes
+  # display format is [HOUR:MIN:SEC.NANOSEC] LINENO: ...
+  PS4=' [$(date +%H:%M:%S.%N)] [${pid}] ${LINENO}: '
+  # finally, turn on bash 'debug' which makes all of the above ultimately meaningful
+  set -o xtrace
+fi
 
 
 
