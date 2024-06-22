@@ -685,7 +685,7 @@ handle_cron_sleep() {
   # this is inserted before bulk fetches even commence when running as a cronjob, to:
   # 1) distribute initial server load at remote end at common cron start times (on the hour, for example)
   # 2) avoid network/disk congestion at local end for similar conditions, and
-  # 3) atomise the initialisation time of multiple concurrent cronjobs at share the same pattern
+  # 3) atomise the initialisation time of multiple concurrent cronjobs that share the same pattern
   # e.g. if multiple jobs start at every 10 min interval (like for satellites) we won't get as dramatic i/o inrush
   [[ ${cron} -eq 1 ]] && sleep "$(shuf --input-range 0-60 --head-count 1)"
 }
