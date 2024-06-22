@@ -69,6 +69,12 @@ fi
     # set location of config file to use custom colours
     export DIALOGRC="${working_directory}/.config/dialog.cfg"
 
+    # [display_spinner]
+    # set up spinner characters
+    # calculate the character length of the first spinner (assuming they're all uniform size) for use with assembling progress bar
+    spinner_cycle=('[/]' '[-]' '[\]' '[|]')
+    spinner_size=${#spinner_cycle[0]}
+
   # references for mapping exit codes
     # exit_1='software or file dependency fail'
     # exit_2='problem working with paths'
@@ -187,8 +193,8 @@ garbage_collection() {
 interrupted() {
   # kill all child processes
   pkill --parent ${$}
-  # cleanup to end of the line if interrupted while spinner is running using ANSI '\033[0K'
-  printf '\033[0K\n%s\n' 'Interrupted.'
+  # cleanup to end of the line if interrupted while spinner is running using ANSI '\e[0K'
+  printf '\e[0K\n%s\n' 'Interrupted.'
   # if display is open (fd0) = this has a tty, so ensure any cursor or terminal changes are reset back to normal
   [[ -t 0 ]] && stty sane; tput cnorm
   # final errexit to trip garbage collection
@@ -402,10 +408,12 @@ display_spinner() {
     tput civis
     # do the spinning as long as the process is active
     while [[ -d /proc/${proc} ]]; do
-      printf '\033[s\033[u[/]\033[u'; sleep "${delay}"
-      printf '\033[s\033[u[—]\033[u'; sleep "${delay}"
-      printf '\033[s\033[u[\]\033[u'; sleep "${delay}"
-      printf '\033[s\033[u[|]\033[u'; sleep "${delay}"
+      # save the cursor entry point, '\e[s' and ensure cursor is at entry point, '\e[u'
+      # iterate through the spinner cycle and restore cursor to saved position
+      for spinner in "${spinner_cycle[@]}"; do
+        printf '\e[s\e[u%s\e[u' "${spinner}"
+        sleep "${delay}"
+      done
     done
     # while spinning, vacuum up any user input into a blackhole by successfully doing nothing with the read constantly
     while read; do true; done
@@ -421,46 +429,160 @@ display_spinner() {
     # wait ${pid}
 }
 
-display_pretty_timer(){
+display_time() {
   # convert provided seconds in $1 to a prettification of days, hours, minutes, seconds
   # thanks to ideas by @nikolay_sidorov and https://www.shellscript.sh/tips/hms/
-  local parts seconds D H M S D_tag H_tag M_tag S_tag
-  seconds=${1:-0}
-  # all days
-  D=$((seconds / 60 / 60 / 24))
-  # all hours
-  H=$((seconds / 60 / 60))
-  H=$((H % 24))
-  # all minutes
-  M=$((seconds / 60))
-  M=$((M % 60))
-  # all seconds
-  S=$((seconds % 60))
+  # default format is long/pretty display, but also accept '--short' tag in $2 to change format
+  # long display is: 1 day, 10 hours, 3 minutes, and 38 seconds
+  # short display is something like: H:MM:SS
+  local format days all_hours hours all_minutes minutes all_seconds seconds
+  local D_tag H_tag M_tag S_tag parts result
+  all_seconds=${1:-0}
+  format="${2}"
+  days=$((all_seconds / 60 / 60 / 24))
+  all_hours=$((all_seconds / 60 / 60))
+  hours=$((all_hours % 24))
+  all_minutes=$((all_seconds / 60))
+  minutes=$((all_minutes % 60))
+  seconds=$((all_seconds % 60))
 
-  # set up "x day(s), x hour(s), x minute(s) and x second(s)" language
-  [[ ${D} -eq 1 ]] && D_tag="day" || D_tag="days"
-  [[ ${H} -eq 1 ]] && H_tag="hour" || H_tag="hours"
-  [[ ${M} -eq 1 ]] && M_tag="minute" || M_tag="minutes"
-  [[ ${S} -eq 1 ]] && S_tag="second" || S_tag="seconds"
+  if [[ ${format} == '--short' ]]; then
+    parts=()
+    # always show at least MM:SS, but expand to H:MM:SS if a larger time
+    # use all hours to incorporate days if displaying a very large time
+    [[ ${all_hours} -gt 0 ]] && parts+=("${all_hours}")
+    # pad remaining number fields with a zero, where required
+    [[ ${#minutes} -eq 1 ]] && parts+=("0${minutes}") || parts+=("${minutes}")
+    [[ ${#seconds} -eq 1 ]] && parts+=("0${seconds}") || parts+=("${seconds}")
 
-  # for parts above that exist, parts into an array for sentence formatting
-  parts=()
-  [[ ${D} -gt 0 ]] && parts+=("${D} ${D_tag}")
-  [[ ${H} -gt 0 ]] && parts+=("${H} ${H_tag}")
-  [[ ${M} -gt 0 ]] && parts+=("${M} ${M_tag}")
-  [[ ${S} -gt 0 ]] && parts+=("${S} ${S_tag}")
+    # construct the short time
+    length_of_parts=${#parts[@]}
+    for ((currentpart=0; currentpart < length_of_parts; currentpart++)); do
+      result+="${parts[$currentpart]}"
+      [[ ${currentpart} -ne $((length_of_parts - 1)) ]] && result+=":"
+    done
+    printf '%s\n' "${result}"
 
-  # construct the sentence
-  result=''
-  length_of_parts=${#parts[@]}
-  for ((currentpart = 0; currentpart < length_of_parts; currentpart++)); do
-    result+="${parts[$currentpart]}"
-    # if current part is not the last portion of the sentence, append a comma
-    [[ ${currentpart} -ne $((length_of_parts - 1)) ]] && result+=", "
-    # if current part will be the last part of the sentence, say 'and'
-    [[ ${currentpart} -eq $((length_of_parts - 2)) ]] && result+="and "
-  done
-  printf '%s\n' "${result}"
+  else
+    # set up "x day(s), x hour(s), x minute(s) and x second(s)" language
+    [[ ${days} -eq 1 ]] && D_tag="day" || D_tag="days"
+    [[ ${hours} -eq 1 ]] && H_tag="hour" || H_tag="hours"
+    [[ ${minutes} -eq 1 ]] && M_tag="minute" || M_tag="minutes"
+    [[ ${seconds} -eq 1 ]] && S_tag="second" || S_tag="seconds"
+
+    # for parts above that exist, parts into an array for sentence formatting
+    parts=()
+    [[ ${days} -gt 0 ]] && parts+=("${days} ${D_tag}")
+    [[ ${hours} -gt 0 ]] && parts+=("${hours} ${H_tag}")
+    [[ ${minutes} -gt 0 ]] && parts+=("${minutes} ${M_tag}")
+    [[ ${seconds} -gt 0 ]] && parts+=("${seconds} ${S_tag}")
+
+    # construct the sentence
+    length_of_parts=${#parts[@]}
+    for ((currentpart=0; currentpart < length_of_parts; currentpart++)); do
+      result+="${parts[$currentpart]}"
+      # if current part is not the last portion of the sentence, append a comma
+      [[ ${currentpart} -ne $((length_of_parts - 1)) ]] && result+=", "
+      # if current part will be the last part of the sentence, say 'and'
+      [[ ${currentpart} -eq $((length_of_parts - 2)) ]] && result+="and "
+    done
+    printf '%s\n' "${result}"
+  fi
+}
+
+display_progress() {
+  # takes values passed to it in $1 $2 $3 to build a progress meter the size of the whole line
+  # e.g. Progress: 12/56 [■■■■■■---------------------------] 21% ~31:42 remaining [/]
+  # $1 is the current cycle count
+  # $2 is the total count
+  # $3 is a customised message before the bar, or defaults to 'Progress:'
+  # $display_progress_start is expected to be the epoch captured outside the `while` working loop before display_progress() is invoked
+  # this is used to calculate estimated time remaining
+  # if $display_progress_start is empty, estimated time remaining should not be displayed
+  # see usage example at the end of this function
+  if [[ ${cron} -ne 1 ]]; then
+    local current_count total_count message start_timestamp progress
+    local current_timestamp runtime estimated_seconds_remaining estimated_time_remaining
+    local max_line_size parts progress_bar_size completed remaining
+
+    current_count=${1:-1}
+    total_count=${2:-1}
+    message="${3:-Progress:}"
+    start_timestamp="${display_progress_start:-0}"
+
+    # work out current percentage of progress
+    progress=$((current_count * 100 / total_count))
+
+    # work out estimated time remaining
+    current_timestamp="$(date +%s)"
+    runtime=$((current_timestamp - start_timestamp))
+    estimated_seconds_remaining=$(((runtime * total_count / current_count) - runtime))
+    estimated_time_remaining="~$(display_time ${estimated_seconds_remaining} --short) remaining"
+
+    # calculate max line size to build out all the progress bar elements to the size of the whole line
+    max_line_size="$(tput cols)"
+      # calculate how many characters each element of the progress bar is to size it off the max_line_size
+      # the left-over space will become the character length of the progress bar
+      # place the character length of *all* variables used in the progress bar in the following array *** ! important ! ***
+      parts=(
+        $((max_line_size))
+        ${#message}
+        ${#current_count} # length of current iteration count (e.g. pad for 2 digits for a var of xx)
+        ${#total_count} # total count = number of iterations queued (e.g. pad for 4 digits with xxxx, etc)
+        $((${#progress} + 1)) # length of progress = current percentage number, +1 for % symbol
+      )
+      # if using estimated time remaining, add that section in before the spinner
+      [[ ${start_timestamp} -ne 0 ]] && parts+=($((${#estimated_time_remaining} + 1))) # length of estimated_time_remaining +1 for padding space
+      parts+=(
+        $((spinner_size + 1)) # spinner size, +1 for leading padding space
+        # now subtract the amount of spaces between the total number of parts added to build the whole line (e.g. 5 vars = 5 padding spaces required)
+        $((${#parts[*]}))
+      )
+      # use a subshell and set bash's Internal Field Separator to wordsplit the progress bar parts with a minus sign instead of whitespace
+      # parse the expanded array into `bc` with here-string so the expanded array becomes 'var1-var2-var3' and so on, that `bc` can calc ;)
+      progress_bar_size="$(IFS='-'; bc <<< "${parts[*]}")"
+
+    # calculate the amount of progress bar fill characters, i.e. '■' and '-'
+    completed=$(((progress * progress_bar_size) / 100))
+    remaining=$((progress_bar_size - completed))
+    # write the length of these out using spaces then replace the spaces below with the desired fill characters at build time
+    completed="$(printf "%$((completed))s")"
+    remaining="$(printf "%$((remaining))s")"
+
+    # empty the length of the parts, and put in the actual content
+    unset parts
+    # e.g. Progress: 12/56 [■■■■■■---------------------------] 21% ~31:42 remaining [/]
+    #      ^ 1st     ^ 2nd ^ 3rd                               ^ 4 ^ 5 (and save cursor here)
+    parts=(
+      "${message}"
+      "$((current_count))/$((total_count))"
+      "[${completed// /■}${remaining// /-}]" # replace spaces with desired fill characters
+      "$((progress))%"
+    )
+    [[ ${start_timestamp} -ne 0 ]] && parts+=("${estimated_time_remaining}")
+
+    # finally, build the progress bar
+    # if we have the estimated time remaining, save the cursor position (to wipe it out once it's at 100% in the next step)
+    # expand all the parts of the array, except the last part, in order to introduce the '\e[s' escape before '%s'
+    # then 'parts[-1]' handles the last part, to get erased
+    [[ ${start_timestamp} -ne 0 ]] && printf '\r%s\e[s%s ' "${parts[*]%"${parts[-1]}"}" "${parts[-1]}" || printf '\r%s ' "${parts[*]}"
+    #                                             ^ note save cursor here *** ! important ! ***
+    # once finished, restore cursor to saved position and erase to end of line
+    [[ ${progress} -eq 100 ]] && printf '\e[u\e[0K'
+  fi
+
+  # usage example:
+  # count=1
+  # total_iterations_to_do=123
+  # display_progress_start="$(date +%s)" ### <-- capture time before entering work
+  # while [[ ${count} -le ${total_iterations_to_do} ]]; do
+  #  # do work here
+  #  display_progress $((count)) $((total_iterations_to_do)) "Progress message:"
+  #  # advance the progress meter
+  #  ((count++))
+  # done
+  # clean up
+  # unset display_progress_start
 }
 
 display_dialog() {
@@ -699,6 +821,8 @@ handle_spinner() {
     "${@}" & pid=${!}
     display_spinner ${pid}
     wait ${pid}; exit_code=${?}
+    # make sure line is cleared
+    printf '\e[0K'
     return ${exit_code}
   else
     return 3
@@ -1034,7 +1158,7 @@ download_satellite_images() {
   # completed successfully, stop timer and display total runtime
   timer_stop=$(date +%s)
   printf '\n%s\n\n' 'Completed successfully.'
-  printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+  printf '%s\n\n' "Total fetching time was $(display_time $((timer_stop-timer_start)))."
 }
 
 download_radar_images() {
@@ -1146,7 +1270,7 @@ download_radar_images() {
   # completed successfully, stop timer and display total runtime
   timer_stop=$(date +%s)
   printf '\n%s\n\n' 'Completed successfully.'
-  printf '%s\n\n' "Total fetching time was $(display_pretty_timer $((timer_stop-timer_start)))."
+  printf '%s\n\n' "Total fetching time was $(display_time $((timer_stop-timer_start)))."
 }
 
 flatten_images() {
@@ -1157,6 +1281,9 @@ flatten_images() {
   # set up array to capture exit codes from `convert` during each iteration
   # this is tested at the end to check for any runtime errors
   convert_result=()
+  # capture epoch time for progress bar to calculate estimated remaining time
+  display_progress_start="$(date +%s)"
+
   # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg, as tifs have multiple layers which `ffmpeg` doesn't like
   if [[ ${context} == 'satellite' ]]; then
     # *** imagemagick defaults need to be tweaked from now on for dealing with the large canvas sizes of himawari satellite images ***
@@ -1167,8 +1294,7 @@ flatten_images() {
 
     # now actually do the conversion
     for file in "${files[@]}"; do
-      # use '\033[0K' ANSI escape to 'clear everything until the end of the line'
-      printf '\r%s %d%s \033[0K' "Flattening satellite images..." $((count * 100 / ${#files[@]})) '%'
+      display_progress $((count)) ${#files[@]} "Flattening satellite images..."
       # get the name of the current file only by stripping off its path
       current_filename="${file##*/}"
       # tif files from bom have multiple layers, and if just using filenames, imagemagick splits those layers into multiple files which is unwanted
@@ -1218,7 +1344,7 @@ flatten_images() {
     if [[ ${id} == 'IDR00004' ]]; then
       # the conversion loop should exclude layers that don't exist for national radar
       for file in "${files[@]}"; do
-        printf '\r%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
+        display_progress $((count)) ${#files[@]} "Flattening radar image layers..."
         # do conversion quietly
         convert -quiet \
           "${legend}" \
@@ -1230,7 +1356,7 @@ flatten_images() {
     else
       # a radar as usual, so conversion loop should assemble known/desired layers
       for file in "${files[@]}"; do
-        printf '\r%s %d%s ' "Flattening radar image layers..." $((count * 100 / ${#files[@]})) '%'
+        display_progress $((count)) ${#files[@]} "Flattening radar image layers..."
         convert -quiet \
           "${legend}" \
           "layers/*.background.png" \
@@ -1243,7 +1369,10 @@ flatten_images() {
     fi
   fi
 
-# if conversion encountered any errors, stop here
+  # clean up after any progress bars finished
+  unset display_progress_start
+
+  # if conversion encountered any errors, stop here
   # arrays implicitly concatenate inside [[ ]] so use explicit * for expanding the array instead of @
   # `convert` only returns two exit codes: '0' for success as normal, or '1' for any failure
   # so, only need to check for the existence of '1' anywhere
@@ -1415,7 +1544,7 @@ make_timelapse() {
   else
     total_processing_time=$((timer_stop-timer_start))
   fi
-  printf '\n%s\n\n' "Total processing time was $(display_pretty_timer ${total_processing_time})."
+  printf '\n%s\n\n' "Total processing time was $(display_time ${total_processing_time})."
   # open the timelapse video file in the user's preferred application
   ##xdg-open "${working_directory}/timelapse/${timelapse_label}.mp4"
 } 8> "/run/lock/bomthegov-timelapse-${id}"
