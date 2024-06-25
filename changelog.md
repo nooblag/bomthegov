@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.12 - 2024/06/25
+ * Add progress bar
+ * Add 'estimated time remaining' indicator to progress bar, and integrate with spinner.
+ * Improve spinner characters handling for progress bar.
+ * Only show progress bar and spinner when running with a TTY.
+ * Improve cron handling.
+ * Improve other non-interactive usage.
+ * Improve cleanup by extending interrupted to run on SIGHUP.
+ * Improve documentation for auto mode when running `timelapse`.
+ * Improve `timelapse` efficiency by merging scaling and labelling into one process.
+ * Improve spinner line clearing.
+ * Turn off debug logging by default.
+
+---
+
 ## 0.1.11 - 2024/06/11
  * Improve spinner return-code logic.
  * Disable STDIN from interrupting `ffmpeg` during timelapse encoding.
