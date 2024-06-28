@@ -863,7 +863,7 @@ handle_satellite_images() {
       if handle_spinner get_satellite_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
-        printf '\r%s\r' "                           "
+        printf '\r\e[0K'
       else
         printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
@@ -921,7 +921,7 @@ handle_radar_images() {
       if handle_spinner get_radar_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
         # this is because `less` runs with `--clear-screen` and takes us back to the prompt when it's done
-        printf '\r%s\r' "                           "
+        printf '\r\e[0K'
       else
         printf '%s\n\n' 'failed. Is the Internet connection up?'
         exit 4
