@@ -6,8 +6,7 @@
 
 ## os check
 # this script currently assumes a debian-based system, so quietly check this system is supported before doing anything further
-# use -v to do verbose binaries search, -p to use default value(s) for PATH
-if ! command -vp dpkg > /dev/null 2>&1; then
+if ! /usr/bin/dpkg --print-architecture > /dev/null 2>&1; then
   printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
   printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short 2> /dev/null || uname)"
   exit 1
