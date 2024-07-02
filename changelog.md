@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.13 - 2024/07/02
+ * Improve OS check.
+ * Improve line clearing throughout.
+ * Update radars and camera descriptions data.
+
+---
+
 ## 0.1.12 - 2024/06/25
  * Add progress bar
  * Add 'estimated time remaining' indicator to progress bar, and integrate with spinner.
