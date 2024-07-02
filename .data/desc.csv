@@ -1,56 +1,56 @@
 ID,View/Description,Camera/Sensor/Method,Res,DelT
 
-IDE00005,GMS 12km (EOL),IR,N/A,504
-IDE00006,GMS 12km (EOL),VIS,N/A,504
-IDE00105,GMS (EOL),IR,N/A,504
-IDE00106,GMS (EOL),VIS,N/A,504
+IDE00005,GMS 12km (EOL),Infrared,N/A,504
+IDE00006,GMS 12km (EOL),Visual,N/A,504
+IDE00105,GMS (EOL),Infrared,N/A,504
+IDE00106,GMS (EOL),Visual,N/A,504
 
-IDE00123,GMS AUS West (EOL),IR Zehr,N/A,504
-IDE00124,GMS AUS West (EOL),IR enhanced,N/A,504
-IDE00125,GMS AUS West (EOL),IR,N/A,504
-IDE00126,GMS AUS West (EOL),VIS,N/A,504
+IDE00123,GMS AUS West (EOL),Infrared Zehr,N/A,504
+IDE00124,GMS AUS West (EOL),Infrared enhanced,N/A,504
+IDE00125,GMS AUS West (EOL),Infrared,N/A,504
+IDE00126,GMS AUS West (EOL),Visual,N/A,504
 
-IDE00133,GMS AUS (EOL),IR Zehr,N/A,504
-IDE00134,GMS AUS (EOL),IR enhanced,N/A,504
+IDE00133,GMS AUS (EOL),Infrared Zehr,N/A,504
+IDE00134,GMS AUS (EOL),Infrared enhanced,N/A,504
 IDE00135,GMS AUS Blue Marble (EOL),,N/A,504
 
-IDE00143,GMS AUS East (EOL),IR Zehr,N/A,504
-IDE00144,GMS AUS East (EOL),IR enhanced,N/A,504
-IDE00145,GMS AUS East (EOL),IR,N/A,504
-IDE00146,GMS AUS East (EOL),VIS,N/A,504
+IDE00143,GMS AUS East (EOL),Infrared Zehr,N/A,504
+IDE00144,GMS AUS East (EOL),Infrared enhanced,N/A,504
+IDE00145,GMS AUS East (EOL),Infrared,N/A,504
+IDE00146,GMS AUS East (EOL),Visual,N/A,504
 
-IDE00153,GMS Full Disc,IR Zehr,N/A,504
-IDE00154,GMS Full Disc,IR enhanced,N/A,504
-IDE00155,GMS Full Disc,IR,N/A,504
-IDE00156,GMS Full Disc,VIS,N/A,504
+IDE00153,GMS Full Disc,Infrared Zehr,N/A,504
+IDE00154,GMS Full Disc,Infrared enhanced,N/A,504
+IDE00155,GMS Full Disc,Infrared,N/A,504
+IDE00156,GMS Full Disc,Visual,N/A,504
 
-IDE00401,AUS equirectangular projection,IR (Ch13) greyscale,2,24
-IDE00402,AUS equirectangular projection,VIS (Ch3) greyscale,2,24
-IDE00403,AUS equirectangular projection,IR (Ch13) Zehr,2,24
-IDE00404,AUS equirectangular projection,IR (Ch13) Rainbow,2,24
-IDE00405,AUS equirectangular projection,IR (Ch13) Blue Marble,2,24
-IDE00406,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,2,24
-IDE00407,AUS equirectangular projection,WV (Ch8),2,24
-IDE00409,AUS equirectangular projection,VIS (Ch3) Greyscale,0.5,24
-IDE00411,AUS equirectangular projection,VIS (Ch3) Greyscale,2,24
+IDE00401,AUS equirectangular projection,Infrared (Ch13) grayscale,2,24
+IDE00402,AUS equirectangular projection,Visual (Ch3) grayscale,2,24
+IDE00403,AUS equirectangular projection,Infrared (Ch13) Zehr,2,24
+IDE00404,AUS equirectangular projection,Infrared (Ch13) Rainbow,2,24
+IDE00405,AUS equirectangular projection,Infrared (Ch13) Blue Marble,2,24
+IDE00406,AUS equirectangular projection,Visual true colour & Infrared (Ch13) composite,2,24
+IDE00407,AUS equirectangular projection,Water vapour (Ch8),2,24
+IDE00409,AUS equirectangular projection,Visual (Ch3) grayscale,0.5,24
+IDE00411,AUS equirectangular projection,Visual (Ch3) grayscale,2,24
 
-IDE00412,AUS geostationary full disc,VIS (Ch3) Greyscale,4,24
-IDE00416,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,4,24
-IDE00420,AUS geostationary full disc,IR (Ch13) cloud cover only,2,24
-IDE00421,AUS geostationary full disc,IR (Ch13) greyscale,2,24
-IDE00422,AUS geostationary full disc,VIS (Ch13) Greyscale,2,24
-IDE00423,AUS geostationary full disc,IR (Ch13) Zehr,2,24
-IDE00425,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,1,24
-IDE00426,AUS geostationary full disc,VIS true colour & IR (Ch13) greyscale composite,2,24
-IDE00427,AUS geostationary full disc,WV (Ch8) composite,2,24
+IDE00412,AUS geostationary full disc,Visual (Ch3) grayscale,4,24
+IDE00416,AUS geostationary full disc,Visual true colour & Infrared (Ch13) composite,4,24
+IDE00420,AUS geostationary full disc,Infrared (Ch13) cloud cover only,2,24
+IDE00421,AUS geostationary full disc,Infrared (Ch13) grayscale,2,24
+IDE00422,AUS geostationary full disc,Visual (Ch13) grayscale,2,24
+IDE00423,AUS geostationary full disc,Infrared (Ch13) Zehr,2,24
+IDE00425,AUS geostationary full disc,Visual true colour & Infrared (Ch13) composite,1,24
+IDE00426,AUS geostationary full disc,Visual true colour & Infrared (Ch13) composite,2,24
+IDE00427,AUS geostationary full disc,Water vapour (Ch8) composite,2,24
 
-IDE00430,AUS equirectangular projection,IR (Ch13) cloud cover only,2,24
-IDE00431,AUS equirectangular projection,WV (Ch8) composite,2,24
-IDE00432,AUS equirectangular projection,VIS (Ch3) greyscale,2,24
-IDE00433,AUS equirectangular projection,IR (Ch13) Zehr,2,24
-IDE00435,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,1,24
-IDE00436,AUS equirectangular projection,VIS true colour & IR (Ch13) greyscale composite,2,24
-IDE00437,AUS equirectangular projection,WV (Ch8),2,24
+IDE00430,AUS equirectangular projection,Infrared (Ch13) cloud cover only,2,24
+IDE00431,AUS equirectangular projection,Infrared (Ch13) grayscale,2,24
+IDE00432,AUS equirectangular projection,Visual (Ch3) grayscale,2,24
+IDE00433,AUS equirectangular projection,Infrared (Ch13) Zehr,2,24
+IDE00435,AUS equirectangular projection,Visual true colour & Infrared (Ch13) composite,1,24
+IDE00436,AUS equirectangular projection,Visual true colour & Infrared (Ch13) composite,2,24
+IDE00437,AUS equirectangular projection,Water vapour (Ch8),2,24
 
 IDR00004,National,Radar Mosaic,N/A,6
 
@@ -150,6 +150,24 @@ IDR107C,Richmond QLD,Rainfields since 9am,N/A,10
 IDR107D,Richmond QLD,Rainfields in 24 hours,N/A,240
 IDR107I,Richmond QLD,Doppler wind velocity,N/A,1.2
 
+IDR1081,Toowoomba QLD,Broad Scale 512km x 512km Composite,N/A,1.2 
+IDR1082,Toowoomba QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1083,Toowoomba QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1084,Toowoomba QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR108I,Toowoomba QLD,Doppler wind velocity,N/A,1.2
+
+IDR1121,Gove Peninsula NT,Broad Scale 512km x 512km Composite,N/A,1.2 
+IDR1122,Gove Peninsula NT,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1123,Gove Peninsula NT,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1124,Gove Peninsula NT,Local-scale 64km x 64km Composite,N/A,1.2
+IDR112I,Gove Peninsula NT,Doppler wind velocity,N/A,1.2
+
+IDR1141,Carnarvon WA,Broad Scale 512km x 512km Composite,N/A,1.2 
+IDR1142,Carnarvon WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1143,Carnarvon WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1144,Carnarvon WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR114I,Carnarvon WA,Doppler wind velocity,N/A,1.2
+
 IDR141,Mt Gambier SA,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR142,Mt Gambier SA,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR143,Mt Gambier SA,Local-scale 128km x 128km Composite,N/A,1.2
@@ -189,6 +207,8 @@ IDR19I,Cairns QLD,Doppler wind velocity,N/A,1.2
 IDR221,Mackay QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR222,Mackay QLD,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR223,Mackay QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR224,Mackay QLD,Local Scale 64km x 64km Composite,N/A,1.2
+IDR22I,Mackay QLD,Doppler wind velocity,N/A,1.2
 
 IDR231,Gladstone QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR232,Gladstone QLD,Mid-scale 256km x 256km Composite,N/A,1.2
@@ -334,6 +354,8 @@ IDR49I,Yarrawonga VIC,Doppler wind velocity,N/A,1.2
 IDR501,Brisbane/Marburg QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR502,Brisbane/Marburg QLD,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR503,Brisbane/Marburg QLD,Local-scale 150km x 150km Composite,N/A,1.2
+IDR504,Brisbane/Marburg QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR50I,Brisbane/Marburg QLD,Doppler wind velocity,N/A,1.2
 
 IDR521,NW Tasmania/West Takone TAS,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR522,NW Tasmania/West Takone TAS,Mid-scale 256km x 256km Composite,N/A,1.2
