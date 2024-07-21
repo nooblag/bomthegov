@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.14 - 2024/07/21
+ * Improve software dependency check.
+ * Improve runtime environment.
+
+---
+
 ## 0.1.13 - 2024/07/02
  * Improve OS check.
  * Improve line clearing throughout.
