@@ -74,6 +74,10 @@ fi
     spinner_cycle=('[/]' '[-]' '[\]' '[|]')
     spinner_size=${#spinner_cycle[0]}
 
+    # ensure subshells are always bash spawns
+    # useful to avoid globbing bugs and so on, for systems where environment defaults are for other shells such as zsh, for instance
+    export SHELL="/bin/bash"
+
   # references for mapping exit codes
     # exit_1='software or file dependency fail'
     # exit_2='problem working with paths'
