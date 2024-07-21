@@ -10,6 +10,7 @@ It's tested but unstable, and of course, a hacky hobby project, so use as beerwa
 
 # How to use this thing
 
+**bomthegov** has been tested on Debian 12.6, Ubuntu 22.04 LTS, and Linux Mint 21.3. It may work on other Debian derivatives, but these haven't been checked yet, so proceed on your own adventure. ;)
 
 
 ## Install
@@ -17,7 +18,7 @@ It's tested but unstable, and of course, a hacky hobby project, so use as beerwa
 Make sure you have the required software on your system:
 
 ```
-sudo apt install git gawk wget curl imagemagick ffmpeg dialog
+sudo apt install bc curl dialog ffmpeg gawk git imagemagick wget
 ```
 
 Clone this repo and go into it:
