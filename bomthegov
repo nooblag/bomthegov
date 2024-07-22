@@ -8,7 +8,13 @@
 # this script currently assumes a debian-based system, so quietly check this system is supported before doing anything further
 if ! /usr/bin/dpkg --print-architecture > /dev/null 2>&1; then
   printf '\n%s\n\n' "Sorry, this script is only supported on Debian-based operating systems."
-  printf '%s %s.\n\n' "It looks like you're using" "$(lsb_release --description --short 2> /dev/null || uname)"
+  operating_system="$(
+    # make first best guess, assuming gnu awk is available
+    gawk --field-separator='"' '/PRETTY_NAME/ {print $2}' /etc/*[-_]release 2> /dev/null ||
+    lsb_release --description --short 2> /dev/null ||
+    uname 2> /dev/null
+  )"
+  printf '%s %s\n\n' "It looks like you're using" "${operating_system:-an unknown Operating System}."
   exit 1
 fi
 
