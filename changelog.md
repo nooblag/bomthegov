@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.15 - 2024/07/26
+ * Improve OS check.
+
+---
+
 ## 0.1.14 - 2024/07/21
  * Improve software dependency check.
  * Improve runtime environment.
