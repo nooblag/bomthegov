@@ -1475,7 +1475,7 @@ make_timelapse() {
         -framerate "${fps}" -fps_mode vfr \
         -pix_fmt yuvj420p -c:v libx264 \
         -preset veryslow \
-        -b:v "${bitrate}" -pass 1 -an -f null /dev/null; ffmpeg_result+=(${?}) && \
+        -b:v "${bitrate}" -pass 1 -an -f null /dev/null &&
       ffmpeg \
         -hide_banner -stats -nostdin \
         -pattern_type glob -i "*.jpg" \
@@ -1496,7 +1496,7 @@ make_timelapse() {
         -framerate "${fps}" -fps_mode vfr \
         -c:v libx264 \
         -preset veryslow \
-        -b:v "${bitrate}" -pass 1 -an -f null /dev/null; ffmpeg_result+=(${?}) && \
+        -b:v "${bitrate}" -pass 1 -an -f null /dev/null &&
       ffmpeg \
         -hide_banner -stats -nostdin \
         -pattern_type glob -i "*.png" \
