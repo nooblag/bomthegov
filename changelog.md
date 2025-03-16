@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.16 - 2025-03-17
+ * Fix `ffmpeg` chaining and ensure backward versions compatibility.
+
+---
+
 ## 0.1.15 - 2024/07/26
  * Improve OS check.
 
