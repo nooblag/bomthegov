@@ -1403,7 +1403,7 @@ make_timelapse() {
   # if after tests, ID is a radar or a satellite, set that context, as we need to do different processing for each
   local context="${id_type}"
 
-  # now build list of files to proccess for the ID
+  # now build list of files to process for the ID
   # use `find` to pattern match files, ignoring stray '.listing' files and empty files
   # this approach handles spaces in filenames and paths much better than the shell globbing into an array with shopt modification as before
   # push the stderr for `find` to nowhere if ID/path doesn't actually exist
@@ -1454,65 +1454,78 @@ make_timelapse() {
 
   # now make mp4 video timelapse!
   printf '\n%s ' "Making MP4..."
-  # set up array to capture exit codes from `ffmpeg` during each iteration
-  # this is tested at the end to check for any runtime errors
-  ffmpeg_result=()
+
+  # check `ffmpeg` version, as its switches vary depending on what has been depreciated in newer versions
+  # this check informs case tests below to maintain backward compatibility
+  ffmpeg_version_check=$(
+    ffmpeg -version |
+    gawk '{
+      if (match($0, /ffmpeg version ([[:digit:]]+)\./, major_version))
+      print major_version[1]
+      # [1] to return 1st group from the pattern only!
+    }'
+  )
+
+  # build list of `ffmpeg` switches used for all contexts
+  ffmpeg_globals=(
+    -stats
+    -nostdin
+    -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" # add such padding to avoid potential "height not divisible by 2" crashes with the input
+    -pix_fmt yuvj420p # set pixel format to explicitly use jpeg full colour range 'yuvj420p' to avoid complaints about that during rendering
+    -c:v libx264
+    -preset veryslow # set to very slow for best compression profile
+    -b:v "${bitrate}"
+  )
+
+  # add-on switches depending on `ffmpeg` version
+  case ${ffmpeg_version_check} in
+    0|1|2|3|4)
+      ffmpeg_globals+=(
+        -r "${fps}"
+        -vsync vfr
+        # framerate handles above are depreciated in version 5+
+      )
+    ;;
+
+    *)
+      ffmpeg_globals+=(
+        -framerate "${fps}"
+        -fps_mode vfr
+      )
+    ;;
+  esac
+
   # wait a short moment first for disk caching
   sleep 1
-    # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
-    if [[ ${context} == 'satellite' ]]; then
-      # capture the exit code of `ffmpeg` into the prepared array for success checking later
-      # `-vf` to add padding to avoid potential "height not divisible by 2" crashes with the input
-      # `-vsync vfr` = variable frame rate from fps set in `-r`
-      # set pixel format to explicitly use jpeg full colour range 'yuvj420p' to avoid complaints about that during rendering
-      # set rendering preset to very slow for best compression profile
-      # `-crf 28` 'Constant Rate Factor' defaults to 28 (0=lossless, but huge filesize)
-      # faststart flags added for improved MP4 streaming
-      ffmpeg \
-        -stats -nostdin \
-        -pattern_type glob -i "*.jpg" \
-        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -framerate "${fps}" -fps_mode vfr \
-        -pix_fmt yuvj420p -c:v libx264 \
-        -preset veryslow \
-        -b:v "${bitrate}" -pass 1 -an -f null /dev/null &&
-      ffmpeg \
-        -hide_banner -stats -nostdin \
-        -pattern_type glob -i "*.jpg" \
-        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -framerate "${fps}" -fps_mode vfr \
-        -pix_fmt yuvj420p -c:v libx264 \
-        -preset veryslow \
-        -b:v "${bitrate}" -pass 2 \
-        -movflags +faststart \
-        "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
 
-    # if we're making a timelapse of a radar, we use the assembled png files
-    elif [[ ${context} == 'radar' ]]; then
-      ffmpeg \
-        -stats -nostdin \
-        -pattern_type glob -i "*.png" \
-        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -framerate "${fps}" -fps_mode vfr \
-        -c:v libx264 \
-        -preset veryslow \
-        -b:v "${bitrate}" -pass 1 -an -f null /dev/null &&
-      ffmpeg \
-        -hide_banner -stats -nostdin \
-        -pattern_type glob -i "*.png" \
-        -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-        -framerate "${fps}" -fps_mode vfr \
-        -c:v libx264 \
-        -preset veryslow \
-        -b:v "${bitrate}" -pass 2 \
-        -movflags +faststart \
-        "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_result+=(${?})
-    fi
+  # if we're making a timelapse of satellite images, ensure we flatten each image to a jpeg as tifs have multiple layers which `ffmpeg` doesn't like
+  if [[ ${context} == 'satellite' ]]; then
+    ffmpeg \
+      -pattern_type glob -i "*.jpg" \
+      "${ffmpeg_globals[@]}" \
+      -pass 1 -an -f null /dev/null &&
+    ffmpeg \
+      -pattern_type glob -i "*.jpg" \
+      "${ffmpeg_globals[@]}" \
+      -pass 2 \
+      -movflags +faststart \
+      "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_success=${?}
+
+  # if we're making a timelapse of a radar, we use the assembled png files
+  elif [[ ${context} == 'radar' ]]; then
+    ffmpeg \
+      -pattern_type glob -i "*.png" \
+      "${ffmpeg_globals[@]}" \
+      -pass 1 -an -f null /dev/null &&
+    ffmpeg \
+      -pattern_type glob -i "*.png" \
+      "${ffmpeg_globals[@]}" \
+      -pass 2 \
+      -movflags +faststart \
+      "${working_directory}/timelapse/${timelapse_filename}.mp4"; ffmpeg_success=${?}
+  fi
 
   # test if all `ffmpeg` iterations were successful
-    # use a subshell and set bash's Internal Field Separator to wordsplit the exit codes in ffmpeg_result with a plus sign instead of whitespace
-    # then, parse the expanded array into `bc` with here-string, so the expanded array becomes 'var1+var2+var3' and so on, that `bc` can then sum ;)
-    ffmpeg_success="$(IFS='+'; bc <<< "${ffmpeg_result[*]}")"
     if [[ ${ffmpeg_success} -ne 0 ]]; then
       printf '\n\n%s\n\n' "Error(s) occurred while attempting to assemble timelapse video for ${id} ${context}. Stopping."
       exit 1
