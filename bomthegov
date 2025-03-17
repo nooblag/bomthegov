@@ -1041,6 +1041,8 @@ handle_update() {
   # begin by fetching latest remote history
   # redirect stdout to stderr so progress changes are also written to xtrace log
   if git fetch --all --write-commit-graph --tags --prune --auto-gc --force 1>&2; then
+    # save any current work anywhere before switching to stable branch to overwrite
+    git stash --quiet --message 'handle_update: Stash before running bash update.'
     # switch to 'releases' of remote first, then to local branch of that
     git checkout remotes/origin/releases --force --quiet || exit 8
     git checkout releases --force --quiet || exit 8
