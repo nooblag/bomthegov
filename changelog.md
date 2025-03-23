@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.17 - 2025-03-24
+ * Restructure debugging log-files handling.
+
+---
+
 ## 0.1.16 - 2025-03-17
  * Fix `ffmpeg` chaining and ensure backward versions compatibility.
 
