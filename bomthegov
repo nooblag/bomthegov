@@ -53,6 +53,7 @@ fi
   # relative path and file name: ${0}
   # full path and file name: ${fullpath_and_filename}
   # full path only: ${working_directory}
+  logfile_path="${working_directory}/.logs"
   # determine if script is running interactively or as a scheduled job by checking for an interactive tty
   # if the display (fd0) is not open = this is running as an automated job
   [[ ! -t 0 ]] && cron=1
@@ -122,12 +123,9 @@ fi
 
 
 ## set up debug logging
-logfile="${working_directory}/.xtrace.log"
-# if the debug config setting file exists, switch on logging
 if [[ -e "${working_directory}/.config/debug" ]]; then
-  # if the logfile exists and is larger than 6 megabytes, quietly rotate it
-  find "${logfile}" -size +6M -exec mv --force "${logfile}" "${logfile}.1" \; > /dev/null 2>&1
-  # now handle log file headings
+  # ensure logging path is ready
+  mkdir --parents "${logfile_path}" || exit 2
   # get the pid of this instance
   pid=${$}
   # return the command name that invoked this script using `ps`
@@ -143,14 +141,10 @@ if [[ -e "${working_directory}/.config/debug" ]]; then
   # then in the quoted string, use "$*" to expand the positional parameters to a single word, separated by the set Internal Field Separator in $IFS
   [[ -n ${*} ]] && process+=" ${*}"
   # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
-  # print the appropriate heading
-  if [[ -s "${logfile}" ]]; then
-    # log already exists so bump with some whitespace before logging this session
-    printf '\n\n\n\n\n\n\n\n%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" >> "${logfile}"
-  else
-    # log doesn't exist, so create it with the same heading structure as above, just without the leading padding
-    printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" > "${logfile}"
-  fi
+  # build filename for this session
+  logfile="${logfile_path}/.xtrace_$(date +%Y-%m-%d_%H%M%S%N)_${pid}.log"
+  # create the appropriate headings in there
+  printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" > "${logfile}"
   # now actually set up the process to write xtrace and stderr output to a log file for debugging
   # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
   # so progress through how we want to handle each:
@@ -170,6 +164,9 @@ if [[ -e "${working_directory}/.config/debug" ]]; then
   PS4=' [$(date +%H:%M:%S.%N)] [${pid}] ${LINENO}: '
   # finally, turn on bash 'debug' which makes all of the above ultimately meaningful
   set -o xtrace
+  # cleanup any log file that are older than 30 days
+  # only write list of files that were cleaned up to logfile (i.e. fd9), don't show on stdout
+  find "${logfile_path}" -type f -mtime +30 -print -delete >&9
 fi
 
 
@@ -1023,7 +1020,7 @@ handle_reset_cleanup() {
     # wipe out image storage, also record any output to xtrace log on stderr
     rm --force --recursive --verbose images 1>&2
     # clear old debugging logs
-    rm --force --verbose xtrace.log.1 1>&2
+    rm --recursive --force --verbose "${logfile_path}" 1>&2
     # clean the git reference log and run aggressive garbage collection and repacking compression
     git reflog expire --all --expire=now 1>&2
     git gc --force --aggressive --prune=now 1>&2
@@ -1082,7 +1079,7 @@ handle_debugging() {
       printf '\n%s\n' "This will turn off debug logging and delete existing logs."
       if handle_question "Are you sure you want to continue?"; then
         # yes, wipe the logs and turn off debugging
-        if rm --force "${working_directory}/.config/debug" "${logfile}" "${logfile}.1"; then
+        if rm --recursive --force "${working_directory}/.config/debug" "${logfile_path}"; then
           printf '%s\n\n' "Code debugging log is off, and logs cleared."
         fi
       else
