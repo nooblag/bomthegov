@@ -5,9 +5,8 @@
 images
 timelapse
 
-# ignore debugging log
-.xtrace.log
-.xtrace.log.1
+# ignore debugging logs
+.logs/
 
 # ensure debugging log setting isn't wiped out through updates
 .config/debug
