@@ -19,29 +19,6 @@ if ! /usr/bin/dpkg --print-architecture > /dev/null 2>&1; then
 fi
 
 
-## software dependencies check
-# `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
-dependencies=(bc curl dialog ffmpeg gawk git imagemagick wget)
-for package in "${dependencies[@]}"; do
-  # quietly check with package manager if required software is installed
-  dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
-done
-# if $failed array contains something, then report what is missing
-if [[ ${#failed[@]} -ne 0 ]]; then
-  printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
-  # use `tput` to set the colour
-  printf '%s%s' "sudo apt install" "$(tput setaf 3)"
-  # iterate over each missing program in 'failed' array
-  for package in "${failed[@]}"; do
-    printf ' %s' "${package}"
-  done
-  # reset colour
-  printf '%s\n\n' "$(tput sgr0)"
-  # stop here and exit with error code 1
-  exit 1
-fi
-
-
 ## set up environment
   this_name='bomthegov'
   this_version='0.1.17'
@@ -54,8 +31,22 @@ fi
   # full path and file name: ${fullpath_and_filename}
   # full path only: ${working_directory}
   logfile_path="${working_directory}/.logs"
+  # get the pid of this instance, and its parent
+  this_pid=${$}
+  this_parent="${PPID}"
+  # return the command name that invoked this script using `ps`
+  # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
+  # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
+  # `--format comm=` omits default headers and sets output to return 'command name only'
+  this_process="$(ps --quick-pid ${this_pid} --format comm=) " # trailing space important for logging format
+  # get the parent too, to also log if this is running in a shell, or as a cronjob (or whatever other process is spawning)
+  this_parent_process="$(ps --quick-pid ${this_parent} --format comm=):" # trailing colon important, as above
+  # append the name and path to what's going on
+  this_process+="${0}"
+  # and if any arguments have been passed, also append them too, to log the entire line invoking this run
+  [[ -n ${*} ]] && this_process+=" ${*}"
   # determine if script is running interactively or as a scheduled job by checking for an interactive tty
-  # if the display (fd0) is not open = this is running as an automated job
+  # if the display (fd0) is not open = this is running as an automated job, which alters certain checks throughout
   [[ ! -t 0 ]] && cron=1
 
   # export some variables to setup specific environments for dependencies
@@ -94,57 +85,16 @@ fi
     # exit_6='interrupted'
     # exit_7='nothing to do'
 
-## bundled files check
-required_files=(
-  "${working_directory}/.etc/merge-lists.awk"
-  "${working_directory}/.data/desc.csv"
-  "${working_directory}/.config/ImageMagick/policy.xml"
-  "${working_directory}/.config/dialog.cfg"
-  "${working_directory}/docs/radar.md"
-  "${working_directory}/docs/readme.md"
-  "${working_directory}/docs/satellite.md"
-  "${working_directory}/docs/timelapse.md"
-)
-for file in "${required_files[@]}"; do
-  [[ ! -s "${file}" ]] && failed+=("${file}")
-done
-# if $failed array contains something, report what files are missing and what the user can do to fix
-# but only when not running 'update' (to fix the problem of missing files)
-if [[ ${#failed[@]} -ne 0 ]] && [[ ${1} != 'update' ]]; then
-  printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs:"
-  # iterate over each missing program in 'failed' array
-  for file in "${failed[@]}"; do
-    printf '  %s %s %s\n' "$(tput setaf 3)" "${file}" "$(tput sgr0)"
-  done
-  # stop here and exit with error code
-  printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
-  exit 1
-fi
-
 
 ## set up debug logging
 if [[ -e "${working_directory}/.config/debug" ]]; then
   # ensure logging path is ready
   mkdir --parents "${logfile_path}" || exit 2
-  # get the pid of this instance
-  pid=${$}
-  # return the command name that invoked this script using `ps`
-  # we expect bash, but useful to detect if problems may be arising from the use of other unsupported shells
-  # $$ is the process id of the script that is being run
-  # `--quick-pid` to only report on process id $$ and ignore other `ps` filtering
-  # `--format comm=` omits default headers and sets output to return 'command name only'
-  process="$(ps --quick-pid ${pid} --format comm=) "
-  # append the name and path of here
-  process+="${0}"
-  # if any arguments have been passed here, append them to the line too
-  # because arrays implicitly concatenate inside [[ ]], we use explicit * here instead of @ for the positional parameters
-  # then in the quoted string, use "$*" to expand the positional parameters to a single word, separated by the set Internal Field Separator in $IFS
-  [[ -n ${*} ]] && process+=" ${*}"
-  # the format is now: [bomthegov] [date/time of initialisation] [if tty or not] [shell] [the name/path of this] [args]
   # build filename for this session
-  logfile="${logfile_path}/.xtrace_$(date +%Y-%m-%d_%H%M%S%N)_${pid}.log"
+  logfile="${logfile_path}/.xtrace_$(date +%Y-%m-%d_%H%M%S%N)_${this_pid}.log"
   # create the appropriate headings in there
-  printf '%s --- %s --- %s ---\n\n' "--- ${this_name}" "$(date) [${pid}]" "${process}" > "${logfile}"
+  # the format is: <bomthegov> <date/time of initialisation> <[PID $$]> <parent/cron>: <shell + the path/name of this + args>
+  printf -- '--- %s --- %s %s --- %s %s ---\n\n' "${this_name}" "$(date)" "[PID ${this_pid}]" "${this_parent_process}" "${this_process}" > "${logfile}"
   # now actually set up the process to write xtrace and stderr output to a log file for debugging
   # the file descriptors for stdin, stdout, and stderr are 0, 1, and 2, respectively ;)
   # so progress through how we want to handle each:
@@ -158,23 +108,43 @@ if [[ -e "${working_directory}/.config/debug" ]]; then
     exec 9>> "${logfile}"
   # now tell bash to write its 'xtrace' output to fd9 which we've opened above
   BASH_XTRACEFD=9
-  # rewrite $P4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
+  # rewrite $PS4 to modify the console prompt to prepend the time and line number of this script that is currently executing at run time
   # note the use of single quotes here because we don't want parameter expansion to happen yet, we want to pass the vars to `exec` to expand at the moment the prompt writes
   # display format is [HOUR:MIN:SEC.NANOSEC] LINENO: ...
-  PS4=' [$(date +%H:%M:%S.%N)] [${pid}] ${LINENO}: '
+  # subshells indent by one space
+  PS4=' [$(date +%H:%M:%S.%N)] line ${LINENO}: '
   # finally, turn on bash 'debug' which makes all of the above ultimately meaningful
   set -o xtrace
-  # cleanup any log file that are older than 30 days
-  # only write list of files that were cleaned up to logfile (i.e. fd9), don't show on stdout
-  find "${logfile_path}" -type f -mtime +30 -print -delete >&9
 fi
-
 
 
 
 ## functions
 
 init() {
+  ## software dependencies check
+  # `gawk` is used to ensure `awk` from `/usr/bin/awk` is GNU awk and not the older `mawk` like it is in most Debian-based distros except Mint
+  dependencies=(bc curl dialog ffmpeg gawk git imagemagick wget)
+  for package in "${dependencies[@]}"; do
+    # quietly check with package manager if required software is installed
+    dpkg --status "${package}" > /dev/null 2>&1 || failed+=("${package}")
+  done
+  # if $failed array contains something, then report what is missing
+  if [[ ${#failed[@]} -ne 0 ]]; then
+    printf '\n%s\n\n' "The following packages in yellow are missing, but can be installed using:"
+    # use `tput` to set the colour
+    printf '%s%s' "sudo apt install" "$(tput setaf 3)"
+    # iterate over each missing program in 'failed' array
+    for package in "${failed[@]}"; do
+      printf ' %s' "${package}"
+    done
+    # reset colour
+    printf '%s\n\n' "$(tput sgr0)"
+    # stop here and exit with error code 1
+    exit 1
+  fi
+
+  ## get ready for work
   # ensure we have a path for image storage available
   mkdir --parents "${working_directory}/.tmp" "${working_directory}/images" || exit 2
   # set a temporary storage for this session
@@ -189,10 +159,45 @@ init() {
   cd "${tmp}" || exit 2
 }
 
+bundled_files_check() {
+  required_files=(
+    "${working_directory}/.etc/merge-lists.awk"
+    "${working_directory}/.data/desc.csv"
+    "${working_directory}/.config/ImageMagick/policy.xml"
+    "${working_directory}/.config/dialog.cfg"
+    "${working_directory}/license.md"
+    "${working_directory}/docs/radar.md"
+    "${working_directory}/docs/readme.md"
+    "${working_directory}/docs/satellite.md"
+    "${working_directory}/docs/timelapse.md"
+  )
+  for file in "${required_files[@]}"; do
+    [[ ! -s "${file}" ]] && failed+=("${file}")
+  done
+  # if $failed array contains something, report what files are missing and what the user can do to fix
+  # but only when not running 'update' (to fix the problem of missing files)
+  if [[ ${#failed[@]} -ne 0 ]] && [[ ${1} != 'update' ]]; then
+    printf '\n%s\n\n' "There is a problem with bundled file(s) that ${this_name} needs:"
+    # iterate over each missing program in 'failed' array
+    for file in "${failed[@]}"; do
+      printf '  %s %s %s\n' "$(tput setaf 3)" "${file}" "$(tput sgr0)"
+    done
+    # stop here and exit with error code
+    printf '\n%s\n%s\n\n' "Please reinstall ${this_name} by running:" "  'bash ${0} update'"
+    exit 1
+  fi
+}
+
 garbage_collection() {
   printf '%s ' "Cleaning up..."
   if handle_spinner rm --force --recursive "${tmp}"; then
     printf '%s\n\n' 'done.'
+  fi
+
+  # if debug log is on, cleanup any log file that is older than 30 days before closing out
+  if [[ -e "${working_directory}/.config/debug" ]]; then
+    # only write list of files that were cleaned up to logfile (i.e. fd9), don't show on stdout
+    find "${logfile_path}" -type f -mtime +30 -print -delete >&9
   fi
 }
 
@@ -368,12 +373,14 @@ display_debug_help() {
 }
 
 display_verbose_help() {
+  bundled_files_check
   # pretty display the help file passed to here in $1
   # applying word-wrap using `fmt` and then pass to `less` to handle scrolling, etc
   fmt --split-only "${1}" | less
 }
 
 display_version() {
+  bundled_files_check
   cat <<-end_cat
 
 	${this_name}
@@ -839,7 +846,7 @@ handle_satellite_images() {
   case "${2}" in
     'list')
       # doing work with files, so set up temporary workspace
-      init
+      init && bundled_files_check
       # say what we're doing
       printf '\n%s ' "Fetching satellite list..."
       # run the get_satellite_list function with a spinner while we wait for it to complete
@@ -864,7 +871,7 @@ handle_satellite_images() {
     ;;
 
     'search')
-      init
+      init && bundled_files_check
       printf '\n%s ' "Fetching satellite list..."
       # run the get_satellite_list function with a spinner while we wait for it to complete
       if handle_spinner get_satellite_list; then
@@ -891,7 +898,7 @@ handle_satellite_images() {
 
     *)
       # doing work with files, so set up temporary workspace
-      init
+      init && bundled_files_check
       # passed variable user input here so run sanitation and formatting tests
       # $1 here is the context from the command line, i.e. 'satellite'
       # $2 is unsanitised user input from command line to undergo regex checks
@@ -906,7 +913,7 @@ handle_satellite_images() {
 handle_radar_images() {
   case "${2}" in
     'list')
-      init
+      init && bundled_files_check
       printf '\n%s ' "Fetching radar list..."
       if handle_spinner get_radar_list; then
         printf '%s\n' "done."
@@ -923,7 +930,7 @@ handle_radar_images() {
     ;;
 
     'search')
-      init
+      init && bundled_files_check
       printf '\n%s ' "Fetching radar list..."
       if handle_spinner get_radar_list; then
         # getting the list was successful, so blank out the last explanatory line so it disappears when `less` is done, when invoked below
@@ -946,7 +953,7 @@ handle_radar_images() {
     ;;
 
     *)
-      init
+      init && bundled_files_check
       handle_user_input "${1}" "${2}"
       download_radar_images "${@}"
     ;;
@@ -956,7 +963,7 @@ handle_radar_images() {
 handle_timelapse_images() {
   case "${2}" in
     'list')
-      init
+      init && bundled_files_check
       printf '\n%s ' "Searching for collected images..."
       if handle_spinner get_timelapse_list; then
         printf '%s\n' "done."
@@ -1002,7 +1009,7 @@ handle_timelapse_images() {
     ;;
 
     *)
-      init
+      init && bundled_files_check
       handle_user_input "${1}" "${2}" "${3}"
       # bump in some empty space before building timelapse
       printf '\n'
