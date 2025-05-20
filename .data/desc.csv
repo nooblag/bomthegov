@@ -140,6 +140,12 @@ IDR1052,Brisbane Airport QLD,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR1053,Brisbane Airport QLD,Local-scale 128km x 128km Composite,N/A,1.2
 IDR1054,Brisbane Airport QLD,Local-scale 64km x 64km Composite,N/A,1.2
 
+IDR1061,Townsville QLD,Broad-scale 512km x 512km Composite,N/A,1.2
+IDR1062,Townsville QLD,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1063,Townsville QLD,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1064,Townsville QLD,Local-scale 64km x 64km Composite,N/A,1.2
+IDR106I,Townsville QLD,Doppler wind velocity,N/A,1.2
+
 IDR1071,Richmond QLD,Broad-scale 512km x 512km Composite,N/A,1.2
 IDR1072,Richmond QLD,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR1073,Richmond QLD,Local-scale 128km x 128km Composite,N/A,1.2
@@ -155,6 +161,12 @@ IDR1082,Toowoomba QLD,Mid-scale 256km x 256km Composite,N/A,1.2
 IDR1083,Toowoomba QLD,Local-scale 128km x 128km Composite,N/A,1.2
 IDR1084,Toowoomba QLD,Local-scale 64km x 64km Composite,N/A,1.2
 IDR108I,Toowoomba QLD,Doppler wind velocity,N/A,1.2
+
+IDR1111,Karratha WA,Broad Scale 512km x 512km Composite,N/A,1.2 
+IDR1112,Karratha WA,Mid-scale 256km x 256km Composite,N/A,1.2
+IDR1113,Karratha WA,Local-scale 128km x 128km Composite,N/A,1.2
+IDR1114,Karratha WA,Local-scale 64km x 64km Composite,N/A,1.2
+IDR111I,Karratha WA,Doppler wind velocity,N/A,1.2
 
 IDR1121,Gove Peninsula NT,Broad Scale 512km x 512km Composite,N/A,1.2 
 IDR1122,Gove Peninsula NT,Mid-scale 256km x 256km Composite,N/A,1.2
