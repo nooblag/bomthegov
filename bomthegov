@@ -599,7 +599,7 @@ display_progress() {
 }
 
 display_dialog() {
-  # consolodate the usage of `dialog`
+  # consolidate the usage of `dialog`
   # baseline functionality takes the contents of a file, passed to here in $1, and displays that data as a menu in dialog box
   # the title of the dialog box is expected in $2
   # ok button label for the first (always default) list screen is expected in $3
@@ -755,7 +755,7 @@ strict_test_radar_id() {
 
 handle_user_input() {
   local context="${1}" # $1 being the arg passed to this function, which will be the matching arg "radar" or "satellite" or "timelapse" the user has typed
-  # $2 is unsanitised user input
+  # $2 is non-sanitised user input
   # accept input with lowercase letters, which is good for lazy typing, but bump everything in $2 to uppercase with ^^ parameter expansion
   local user_input="${2^^}"
   # we need uppercase sanitised input for strict `grep` checking and also correct FTP file pattern matching throughout *** ! important ! ***
@@ -901,7 +901,7 @@ handle_satellite_images() {
       init && bundled_files_check
       # passed variable user input here so run sanitation and formatting tests
       # $1 here is the context from the command line, i.e. 'satellite'
-      # $2 is unsanitised user input from command line to undergo regex checks
+      # $2 is non-sanitised user input from command line to undergo regex checks
       handle_user_input "${1}" "${2}"
       # user input checks passed so attempt to actually download those images
       # also pass original command line args to handle time globbing etc
